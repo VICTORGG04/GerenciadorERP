@@ -1,0 +1,190 @@
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+<div class="page-header">
+  <h1>Dashboard</h1>
+  <span class="badge-date"><%= Time.now.strftime('%d/%m/%Y') %></span>
+</div>
+
+<%# ── KPI Cards ────────────────────────────────────────── %>
+<div class="kpi-grid">
+  <div class="kpi-card" style="--accent:#6366f1">
+    <div class="kpi-icon">📦</div>
+    <div class="kpi-value"><%= @total_products %></div>
+    <div class="kpi-label">Produtos</div>
+  </div>
+  <div class="kpi-card" style="--accent:#10b981">
+    <div class="kpi-icon">🏷️</div>
+    <div class="kpi-value"><%= @total_categories %></div>
+    <div class="kpi-label">Categorias</div>
+  </div>
+  <div class="kpi-card" style="--accent:<%= @low_stock.size > 0 ? '#f59e0b' : '#10b981' %>">
+    <div class="kpi-icon">⚠️</div>
+    <div class="kpi-value"><%= @low_stock.size + @out_of_stock.size %></div>
+    <div class="kpi-label">Estoque Crítico</div>
+  </div>
+  <div class="kpi-card" style="--accent:#06b6d4">
+    <div class="kpi-icon">💰</div>
+    <div class="kpi-value"><%= fmt_brl(@total_stock_value) %></div>
+    <div class="kpi-label">Valor Total em Estoque</div>
+  </div>
+</div>
+
+<%# ── Gráficos ─────────────────────────────────────────── %>
+<div style="display:grid;grid-template-columns:1fr 1.8fr;gap:16px;margin-bottom:28px">
+  <div class="card">
+    <div class="card-title">🥧 Produtos por Categoria</div>
+    <canvas id="chartCategories" height="200"></canvas>
+  </div>
+  <div class="card">
+    <div class="card-title">📊 Movimentações (7 dias)</div>
+    <canvas id="chartMovements" height="200"></canvas>
+  </div>
+</div>
+
+<%# ── Estoque Crítico ──────────────────────────────────── %>
+<% critical = @out_of_stock + @low_stock %>
+<% if critical.any? %>
+  <div class="card" style="margin-bottom:28px">
+    <div class="card-title">🚨 Produtos com Estoque Crítico</div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <% critical.each do |p| %>
+        <div class="product-card" style="<%= p.out_of_stock? ? 'border-left:3px solid #ef4444;' : 'border-left:3px solid #f59e0b;' %>">
+          <div class="product-info">
+            <div class="product-name"><%= h(p.name) %></div>
+            <span class="product-sku"><%= h(p.sku) %></span>
+          </div>
+          <div class="product-stats">
+            <div class="stat-box">
+              <div class="stat-value" style="color:<%= p.out_of_stock? ? '#ef4444' : '#f59e0b' %>">
+                <%= p.quantity %>
+              </div>
+              <div class="stat-label">Atual</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-value"><%= p.min_quantity %></div>
+              <div class="stat-label">Mínimo</div>
+            </div>
+            <span class="pill <%= p.out_of_stock? ? 'pill-red' : 'pill-yellow' %>">
+              <%= p.out_of_stock? ? 'SEM ESTOQUE' : 'ESTOQUE BAIXO' %>
+            </span>
+            <a href="/products/<%= p.id %>" class="btn btn-sm btn-ghost">Ver</a>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  </div>
+<% end %>
+
+<%# ── Grid inferior: Movimentações + Pedidos ──────────── %>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+  <div class="card">
+    <div class="card-title">⇅ Últimas Movimentações</div>
+    <% if @movements.empty? %>
+      <div class="empty-state">Nenhuma movimentação registrada.</div>
+    <% else %>
+      <% @movements.each do |m| %>
+        <div class="list-row">
+          <span class="badge <%= m.kind == 'in' ? 'badge-in' : m.kind == 'out' ? 'badge-out' : 'badge-adj' %>">
+            <%= m.kind == 'in' ? 'ENTRADA' : m.kind == 'out' ? 'SAÍDA' : 'AJUSTE' %>
+          </span>
+          <span style="flex:1;font-size:13px">
+            <strong><%= h(m.product_name) %></strong>
+            <span class="text-muted"><%= h(m.reason).to_s.empty? ? '' : "— #{h(m.reason)}" %></span>
+          </span>
+          <div class="row-right">
+            <span style="font-weight:700;color:<%= m.kind == 'out' ? '#ef4444' : '#10b981' %>">
+              <%= m.kind == 'out' ? '-' : '+' %><%= m.quantity %>
+            </span>
+            <span class="text-xs"><%= m.created_at.to_s[0,16].gsub('T',' ') %></span>
+          </div>
+        </div>
+      <% end %>
+    <% end %>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🛒 Pedidos Recentes</div>
+    <% if @recent_orders.empty? %>
+      <div class="empty-state">Nenhum pedido registrado.</div>
+    <% else %>
+      <% @recent_orders.each do |o| %>
+        <div class="list-row">
+          <span style="flex:1">
+            <span class="product-name"><%= h(o.reference) %></span>
+            <span class="text-muted" style="margin-left:6px"><%= h(o.customer) %></span>
+          </span>
+          <span class="pill <%= o.status == 'confirmed' ? 'pill-green' : o.status == 'cancelled' ? 'pill-red' : 'pill-yellow' %>">
+            <%= o.status == 'confirmed' ? 'CONFIRMADO' : o.status == 'cancelled' ? 'CANCELADO' : 'PENDENTE' %>
+          </span>
+          <span style="font-weight:600;font-size:13px"><%= fmt_brl(o.total) %></span>
+          <a href="/orders/<%= o.id %>" class="btn btn-sm btn-ghost">Ver</a>
+        </div>
+      <% end %>
+    <% end %>
+  </div>
+</div>
+
+<%# ── Script Chart.js ──────────────────────────────────── %>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  Chart.defaults.color = '#7b82a8';
+  Chart.defaults.borderColor = '#ffffff0f';
+
+  <% if @products_by_category.any? %>
+  new Chart(document.getElementById('chartCategories'), {
+    type: 'doughnut',
+    data: {
+      labels: <%= @products_by_category.map { |c| c[:name] }.to_json %>,
+      datasets: [{
+        data: <%= @products_by_category.map { |c| c[:count] }.to_json %>,
+        backgroundColor: ['#6366f1','#10b981','#f59e0b','#ef4444','#06b6d4','#a855f7','#ec4899','#14b8a6'],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'bottom', labels: { padding: 16, font: { size: 11 } } }
+      }
+    }
+  });
+  <% end %>
+
+  <% if @movements_by_day.any? %>
+  new Chart(document.getElementById('chartMovements'), {
+    type: 'bar',
+    data: {
+      labels: <%= @movements_by_day.map { |d| d[0] }.to_json %>,
+      datasets: [
+        {
+          label: 'Entradas',
+          data: <%= @movements_by_day.map { |d| d[1] }.to_json %>,
+          backgroundColor: '#10b98160',
+          borderColor: '#10b981',
+          borderWidth: 1,
+          borderRadius: 4
+        },
+        {
+          label: 'Saídas',
+          data: <%= @movements_by_day.map { |d| d[2] }.to_json %>,
+          backgroundColor: '#ef444460',
+          borderColor: '#ef4444',
+          borderWidth: 1,
+          borderRadius: 4
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        x: { grid: { display: false } },
+        y: { beginAtZero: true, ticks: { stepSize: 1 } }
+      },
+      plugins: {
+        legend: { position: 'bottom', labels: { padding: 16, font: { size: 11 } } }
+      }
+    }
+  });
+  <% end %>
+});
+</script>

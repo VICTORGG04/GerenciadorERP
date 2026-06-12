@@ -1,0 +1,181 @@
+# controllers/auth_controller.rb
+
+# ── Login ─────────────────────────────────────────────────────────
+get '/login' do
+  redirect '/' if current_user
+  erb :login, layout: false
+end
+
+post '/login' do
+  user = User.authenticate(params[:email], params[:password])
+
+  if user
+    session[:user_id]   = user.id
+    session[:user_name] = user.name
+    session[:user_role] = user.role
+    redirect '/'
+  else
+    @error = 'E-mail ou senha incorretos.'
+    erb :login, layout: false
+  end
+end
+
+get '/logout' do
+  session.clear
+  redirect '/login'
+end
+
+# ── Gerenciar usuários (apenas admin) ─────────────────────────────
+get '/users' do
+  require_admin!
+  @users = User.all
+  erb :'users/index'
+end
+
+get '/users/new' do
+  require_admin!
+  erb :'users/form'
+end
+
+post '/users' do
+  require_admin!
+
+  # ── Validações ──────────────────────────────────────────────────
+  if params[:name].to_s.strip.empty?
+    @error = 'O nome não pode estar em branco.'
+    halt erb(:'users/form')
+  end
+
+  unless params[:email] =~ /\A[^@\s]+@[^@\s]+\.[^@\s]+\z/
+    @error = 'E-mail inválido.'
+    halt erb(:'users/form')
+  end
+
+  unless User::ROLES.key?(params[:role])
+    @error = 'Nível de acesso inválido.'
+    halt erb(:'users/form')
+  end
+
+  if params[:password].to_s.length < 6
+    @error = 'A senha deve ter pelo menos 6 caracteres.'
+    halt erb(:'users/form')
+  end
+
+  if params[:password] != params[:password_confirm]
+    @error = 'As senhas não coincidem.'
+    halt erb(:'users/form')
+  end
+
+  # ── Criação ─────────────────────────────────────────────────────
+  begin
+    User.create(
+      name:     params[:name],
+      email:    params[:email],
+      password: params[:password],
+      role:     params[:role]
+    )
+    redirect '/users'
+  rescue PG::UniqueViolation
+    @error = 'Este e-mail já está cadastrado.'
+    erb :'users/form'
+  rescue => e
+    @error = e.message
+    erb :'users/form'
+  end
+end
+
+# ── Edição de usuário ──────────────────────────────────────────────
+get '/users/:id/edit' do
+  require_admin!
+  @user = User.find(params[:id])
+  halt 404 unless @user
+  erb :'users/edit'
+end
+
+patch '/users/:id' do
+  require_admin!
+  @user = User.find(params[:id])
+  halt 404 unless @user
+
+  # ── Validações ──────────────────────────────────────────────────
+  if params[:name].to_s.strip.empty?
+    @error = 'O nome não pode estar em branco.'
+    @form_params = params
+    halt erb(:'users/edit')
+  end
+
+  unless params[:email] =~ /\A[^@\s]+@[^@\s]+\.[^@\s]+\z/
+    @error = 'E-mail inválido.'
+    @form_params = params
+    halt erb(:'users/edit')
+  end
+
+  unless User::ROLES.key?(params[:role])
+    @error = 'Nível de acesso inválido.'
+    @form_params = params
+    halt erb(:'users/edit')
+  end
+
+  # ── Atualização ─────────────────────────────────────────────────
+  begin
+    User.update(
+      id:    @user.id,
+      name:  params[:name],
+      email: params[:email],
+      role:  params[:role]
+    )
+    redirect '/users'
+  rescue PG::UniqueViolation
+    @error = 'Este e-mail já está cadastrado.'
+    @form_params = params
+    erb :'users/edit'
+  rescue => e
+    @error = e.message
+    @form_params = params
+    erb :'users/edit'
+  end
+end
+
+post '/users/:id/toggle' do
+  require_admin!
+  User.toggle_active(params[:id])
+  redirect '/users'
+end
+
+post '/users/:id/change_password' do
+  require_admin!
+
+  # ── Validações ──────────────────────────────────────────────────
+  if params[:password].to_s.length < 6
+    @users = User.all
+    @error = 'A senha deve ter pelo menos 6 caracteres.'
+    halt erb(:'users/index')
+  end
+
+  if params[:password] != params[:password_confirm]
+    @users = User.all
+    @error = 'As senhas não coincidem.'
+    halt erb(:'users/index')
+  end
+
+  User.change_password(id: params[:id], password: params[:password])
+  redirect '/users'
+end
+
+# ── Excluir usuário permanentemente ───────────────────────────────
+delete '/users/:id' do
+  require_admin!
+
+  user = User.find(params[:id])
+  halt 404 unless user
+
+  # Impede excluir a si mesmo
+  if user.id == current_user.id
+    @users = User.all
+    @error = 'Você não pode excluir sua própria conta.'
+    halt erb(:'users/index')
+  end
+
+  User.destroy(params[:id])
+  redirect '/users'
+end

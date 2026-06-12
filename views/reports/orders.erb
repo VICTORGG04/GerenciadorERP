@@ -1,0 +1,73 @@
+<!-- views/reports/orders.erb -->
+<div class="page-header">
+  <h1>Relatório de Pedidos</h1>
+  <a href="/reports" class="btn btn-ghost">← Relatórios</a>
+</div>
+
+<!-- Filtros -->
+<div class="card" style="margin-bottom:20px">
+  <form method="get" action="/reports/orders"
+        style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+    <div>
+      <label class="label">De</label>
+      <input class="input" type="date" name="date_from" value="<%= h(@date_from.to_s) %>">
+    </div>
+    <div>
+      <label class="label">Até</label>
+      <input class="input" type="date" name="date_to" value="<%= h(@date_to.to_s) %>">
+    </div>
+    <div>
+      <label class="label">Status</label>
+      <select class="input" name="status">
+        <option value="">Todos</option>
+        <option value="pending"   <%= @status == 'pending'   ? 'selected' : '' %>>Pendente</option>
+        <option value="confirmed" <%= @status == 'confirmed' ? 'selected' : '' %>>Confirmado</option>
+        <option value="cancelled" <%= @status == 'cancelled' ? 'selected' : '' %>>Cancelado</option>
+      </select>
+    </div>
+    <button class="btn btn-primary" type="submit">Filtrar</button>
+    <a href="/reports/orders" class="btn btn-ghost">Limpar</a>
+    <a href="/reports/orders.csv?<%= request.query_string %>"
+       class="btn btn-ghost" style="margin-left:auto">⬇ Exportar CSV</a>
+  </form>
+</div>
+
+<% if @orders.empty? %>
+  <div class="empty-state">Nenhum pedido encontrado para os filtros selecionados.</div>
+<% else %>
+  <%
+    total_geral = @orders.sum(&:total)
+  %>
+  <div style="font-size:13px;color:#888;margin-bottom:10px">
+    <%= @orders.size %> pedido(s) —
+    Total: <strong style="color:#6366f1"><%= fmt_brl(total_geral) %></strong>
+  </div>
+
+  <div class="card">
+    <% @orders.each do |o| %>
+      <%
+        status_bg    = o.confirmed? ? '#d1fae5' : o.cancelled? ? '#fee2e2' : '#fef3c7'
+        status_color = o.confirmed? ? '#065f46' : o.cancelled? ? '#991b1b' : '#92400e'
+        status_label = o.confirmed? ? 'Confirmado' : o.cancelled? ? 'Cancelado' : 'Pendente'
+      %>
+      <div style="display:flex;align-items:center;gap:14px;padding:10px 0;border-bottom:1px solid #f0f0f0">
+        <div style="min-width:160px">
+          <a href="/orders/<%= o.id %>" style="font-weight:600;color:#6366f1;text-decoration:none">
+            <%= h(o.reference) %>
+          </a>
+          <div style="font-size:11px;color:#aaa"><%= o.created_at.to_s[0,16].gsub('T',' ') %></div>
+        </div>
+        <div style="flex:1;font-size:14px;color:#555">
+          <%= h(o.customer.to_s.empty? ? '—' : o.customer) %>
+        </div>
+        <span style="background:<%= status_bg %>;color:<%= status_color %>;
+                     padding:3px 10px;border-radius:12px;font-size:12px;font-weight:700">
+          <%= status_label %>
+        </span>
+        <div style="font-weight:600;min-width:100px;text-align:right">
+          <%= fmt_brl(o.total) %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+<% end %>

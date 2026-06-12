@@ -1,0 +1,67 @@
+<!-- views/reports/movements.erb -->
+<div class="page-header">
+  <h1>Relatório de Movimentações</h1>
+  <a href="/reports" class="btn btn-ghost">← Relatórios</a>
+</div>
+
+<!-- Filtros -->
+<div class="card" style="margin-bottom:20px">
+  <form method="get" action="/reports/movements"
+        style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+    <div>
+      <label class="label">De</label>
+      <input class="input" type="date" name="date_from" value="<%= h(@date_from.to_s) %>">
+    </div>
+    <div>
+      <label class="label">Até</label>
+      <input class="input" type="date" name="date_to" value="<%= h(@date_to.to_s) %>">
+    </div>
+    <div>
+      <label class="label">Tipo</label>
+      <select class="input" name="kind">
+        <option value="">Todos</option>
+        <option value="in"     <%= @kind == 'in'     ? 'selected' : '' %>>Entrada</option>
+        <option value="out"    <%= @kind == 'out'    ? 'selected' : '' %>>Saída</option>
+        <option value="adjust" <%= @kind == 'adjust' ? 'selected' : '' %>>Ajuste</option>
+      </select>
+    </div>
+    <button class="btn btn-primary" type="submit">Filtrar</button>
+    <a href="/reports/movements" class="btn btn-ghost">Limpar</a>
+    <a href="/reports/movements.csv?<%= request.query_string %>"
+       class="btn btn-ghost" style="margin-left:auto">⬇ Exportar CSV</a>
+  </form>
+</div>
+
+<% if @movements.empty? %>
+  <div class="empty-state">Nenhuma movimentação encontrada para os filtros selecionados.</div>
+<% else %>
+  <div style="font-size:13px;color:#888;margin-bottom:10px">
+    <%= @movements.size %> registro(s) encontrado(s)
+  </div>
+
+  <div class="card">
+    <% @movements.each do |m| %>
+      <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #f0f0f0">
+        <span style="min-width:64px;text-align:center;padding:3px 8px;border-radius:6px;
+                     font-size:11px;font-weight:700;
+                     background:<%= m.kind=='in' ? '#d1fae5' : m.kind=='out' ? '#fee2e2' : '#fef3c7' %>;
+                     color:<%= m.kind=='in' ? '#065f46' : m.kind=='out' ? '#991b1b' : '#92400e' %>">
+          <%= m.kind.upcase %>
+        </span>
+        <div style="flex:1">
+          <strong><%= h(m.product_name) %></strong>
+          <span style="font-size:12px;color:#888;margin-left:6px"><%= h(m.product_sku) %></span>
+        </div>
+        <div style="flex:1;font-size:13px;color:#666"><%= h(m.reason.to_s) %></div>
+        <div style="font-size:12px;color:#aaa;min-width:80px"><%= h(m.reference.to_s) %></div>
+        <div style="font-weight:600;min-width:40px;text-align:right;
+                    color:<%= m.kind=='out' ? '#dc2626' : '#059669' %>">
+          <%= m.kind=='out' ? '-' : '+' %><%= m.quantity %>
+        </div>
+        <div style="font-size:11px;color:#bbb;min-width:110px;text-align:right">
+          <%= m.created_at.to_s[0,16].gsub('T',' ') %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+<% end %>
