@@ -1,13 +1,34 @@
-require "pg"
+require 'dotenv'
+require 'pg'
+require 'bcrypt'
 
-DB = PG.connect(
-  dbname: "gerenciador_estoque",
-  user: "victor",
-  password: "0108",
-  host: "localhost"
-)
+Dotenv.load('/etc/gerenciador-erp/.env', '.env')
 
-puts "Conectado ao PostgreSQL!"
+host     = ENV.fetch('DB_HOST', '127.0.0.1')
+port     = ENV.fetch('DB_PORT', '5432')
+dbname   = ENV.fetch('DB_NAME', 'gerenciador_estoque')
+user     = ENV.fetch('DB_USER', 'gerenciador_erp')
+password = ENV.fetch('DB_PASSWORD', '')
+
+begin
+  DB = PG.connect(host: host, port: port, dbname: dbname, user: user, password: password)
+rescue PG::ConnectionBad => e
+  if e.message.include?('does not exist')
+    puts "Banco '#{dbname}' não encontrado. Criando..."
+    admin = PG.connect(host: host, port: port, dbname: 'postgres', user: user, password: password)
+    admin.exec("CREATE DATABASE #{dbname}")
+    admin.close
+    DB = PG.connect(host: host, port: port, dbname: dbname, user: user, password: password)
+  else
+    puts "Erro ao conectar: #{e.message}"
+    puts "Verifique se o PostgreSQL está rodando e as credenciais em .env"
+    exit 1
+  end
+end
+
+puts "Conectado ao banco #{dbname}!"
+
+DB.exec("CREATE SCHEMA IF NOT EXISTS public")
 
 # =========================
 # USERS
