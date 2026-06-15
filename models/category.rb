@@ -39,6 +39,10 @@ class Category
   end
 
   def self.delete(id)
+    count = db.exec_params('SELECT COUNT(*) FROM products WHERE category_id = $1', [id])
+    return false if count[0]['count'].to_i > 0
+
     db.exec_params('DELETE FROM categories WHERE id = $1', [id])
+    true
   end
 end

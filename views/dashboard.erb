@@ -9,7 +9,12 @@
 <div class="kpi-grid">
   <div class="kpi-card" style="--accent:#6366f1">
     <div class="kpi-icon">📦</div>
-    <div class="kpi-value"><%= @total_products %></div>
+    <div class="kpi-value">
+      <%= @total_products %>
+      <% unless feature?('unlimited_products') %>
+        <span class="kpi-max">/<%= max_products %></span>
+      <% end %>
+    </div>
     <div class="kpi-label">Produtos</div>
   </div>
   <div class="kpi-card" style="--accent:#10b981">

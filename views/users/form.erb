@@ -26,8 +26,10 @@
     <div>
       <label class="label">Nível de acesso *</label>
       <select class="input" name="role" required>
-        <% User::ROLES.each do |value, label| %>
-          <option value="<%= value %>"><%= label %></option>
+        <option value="operator">Operador (leitura)</option>
+        <% if feature?('users') %>
+          <option value="assistant">Assistente (edição)</option>
+          <option value="admin">Administrador (total)</option>
         <% end %>
       </select>
     </div>

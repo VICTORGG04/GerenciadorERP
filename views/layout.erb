@@ -4,6 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ERP Gerenciador de Estoque</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#16213e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icons/icon-192.svg">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -26,32 +31,48 @@
     <a href="/products" class="nav-item <%= nav_active('/products') %>">
       📦 <span>Produtos</span>
     </a>
-    <a href="/categories" class="nav-item <%= nav_active('/categories') %>">
-      🏷️ <span>Categorias</span>
-    </a>
-
-    <div class="nav-section-label">Movimentações</div>
-    <a href="/movements" class="nav-item <%= nav_active('/movements') %>">
-      ⇅ <span>Movimentações</span>
-    </a>
-    <a href="/orders" class="nav-item <%= nav_active('/orders') %>">
-      🛒 <span>Pedidos</span>
-    </a>
-    <a href="/quick_out" class="nav-item <%= nav_active('/quick_out') %>">
-      ⚡ <span>Baixa Rápida</span>
-    </a>
-
-    <div class="nav-section-label">Sistema</div>
-    <a href="/reports" class="nav-item <%= nav_active('/reports') %>">
-      📊 <span>Relatórios</span>
-    </a>
-    <a href="/backups" class="nav-item <%= nav_active('/backups') %>">
-      💾 <span>Backups</span>
-    </a>
-    <% if defined?(current_user) && current_user&.admin? %>
-      <a href="/users" class="nav-item <%= nav_active('/users') %>">
-        👤 <span>Usuários</span>
+    <% if feature?('categories') %>
+      <a href="/categories" class="nav-item <%= nav_active('/categories') %>">
+        🏷️ <span>Categorias</span>
       </a>
+    <% end %>
+
+    <% if feature?('movements') || feature?('orders') || feature?('quick_out') %>
+      <div class="nav-section-label">Movimentações</div>
+      <% if feature?('movements') %>
+        <a href="/movements" class="nav-item <%= nav_active('/movements') %>">
+          ⇅ <span>Movimentações</span>
+        </a>
+      <% end %>
+      <% if feature?('orders') %>
+        <a href="/orders" class="nav-item <%= nav_active('/orders') %>">
+          🛒 <span>Pedidos</span>
+        </a>
+      <% end %>
+      <% if feature?('quick_out') %>
+        <a href="/quick_out" class="nav-item <%= nav_active('/quick_out') %>">
+          ⚡ <span>Baixa Rápida</span>
+        </a>
+      <% end %>
+    <% end %>
+
+    <% if feature?('reports') || feature?('backups') || feature?('users') %>
+      <div class="nav-section-label">Sistema</div>
+      <% if feature?('reports') %>
+        <a href="/reports" class="nav-item <%= nav_active('/reports') %>">
+          📊 <span>Relatórios</span>
+        </a>
+      <% end %>
+      <% if feature?('backups') %>
+        <a href="/backups" class="nav-item <%= nav_active('/backups') %>">
+          💾 <span>Backups</span>
+        </a>
+      <% end %>
+      <% if feature?('users') && defined?(current_user) && current_user&.admin? %>
+        <a href="/users" class="nav-item <%= nav_active('/users') %>">
+          👤 <span>Usuários</span>
+        </a>
+      <% end %>
     <% end %>
   </nav>
 
@@ -72,20 +93,23 @@
         </a>
       </div>
     <% end %>
+    <div class="plan-badge <%= current_plan %>">
+      <%= plan_label %>
+    </div>
   </div>
 
 </aside>
 
 <main class="main-content">
 
-  <% if params[:error] %>
-    <div class="alert alert-error">⚠ <%= h(params[:error]) %></div>
-  <% end %>
-  <% if params[:ok] %>
-    <div class="alert alert-ok">✓ <%= h(params[:ok]) %></div>
-  <% end %>
   <% if defined?(@error) && @error %>
     <div class="alert alert-error">⚠ <%= h(@error) %></div>
+  <% end %>
+  <% flash = flash_msg %>
+  <% if flash %>
+    <div class="alert alert-<%= flash[:type] == 'error' ? 'error' : 'ok' %>">
+      <%= flash[:type] == 'error' ? '⚠' : '✓' %> <%= h(flash[:msg]) %>
+    </div>
   <% end %>
 
   <%= yield %>

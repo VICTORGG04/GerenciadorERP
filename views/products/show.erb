@@ -60,28 +60,18 @@
   </form>
 </div>
 
-<div class="card">
-  <div class="card-title">📋 Histórico de Movimentações</div>
-  <% if @movements.empty? %>
-    <p class="empty-msg">Nenhuma movimentação registrada.</p>
-  <% else %>
-    <% @movements.each do |m| %>
-      <div class="list-row">
-        <span class="badge <%= m.kind_css %>"><%= m.kind_label %></span>
-        <span class="text-muted"><%= h(m.reason || '—') %></span>
-        <div class="row-right">
-          <span class="product-name"><%= m.kind_sign %><%= m.quantity %> un</span>
-          <span class="text-xs"><%= m.created_at&.slice(0,16)&.gsub('T',' ') %></span>
-        </div>
-      </div>
-    <% end %>
-  <% end %>
-
-  <%
-    # views/products/show.erb
-    # Busca histórico de movimentações do produto
-    @audit = Movement.by_product(@product.id)
-  %>
+  <!-- ── Ações de risco ────────────────────────────────────── -->
+  <div style="margin-top:20px;padding-top:20px;border-top:1px solid var(--border,#eee);display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">
+    <form method="post" action="/products/<%= @product.id %>/zero_stock"
+          onsubmit="return confirm('Zerar o estoque de <%= h(@product.name) %>? O produto continuará cadastrado com quantidade 0.')">
+      <input type="hidden" name="reason" value="Zerado manualmente pelo administrador">
+      <button class="btn btn-warning" type="submit">📦 Zerar Estoque</button>
+    </form>
+    <form method="post" action="/products/<%= @product.id %>/delete"
+          onsubmit="return confirm('Excluir permanentemente <%= h(@product.name) %>?\n\nTodas as movimentações deste produto serão removidas.')">
+      <button class="btn btn-danger" type="submit">🗑 Excluir Produto</button>
+    </form>
+  </div>
 
   <!-- Histórico de Movimentações (Auditoria) -->
   <div style="margin-top:28px">

@@ -13,6 +13,7 @@ end
 get '/products/:id' do
   @product    = Product.find(params[:id])
   @categories = Category.all
+  @audit      = Movement.by_product(params[:id])
   halt 404, 'Produto não encontrado' unless @product
   erb :'products/show'
 end
@@ -27,6 +28,13 @@ end
 
 post '/products' do
   require_assistant!
+  unless feature?('unlimited_products')
+    count = DB.exec("SELECT COUNT(*) FROM products")[0]['count'].to_i
+    if count >= max_products
+      flash 'error', "Limite de #{max_products} produtos atingido. Faça upgrade do plano para cadastrar mais."
+      redirect '/products'
+    end
+  end
   begin
     Product.create(
       name:         params[:name],
@@ -127,6 +135,24 @@ post '/products/:id/adjust' do
   redirect "/products/#{params[:id]}"
 rescue ArgumentError => e
   redirect "/products/#{params[:id]}?error=#{Rack::Utils.escape(e.message)}"
+end
+
+post '/products/:id/zero_stock' do
+  require_admin!
+  product = Product.find(params[:id])
+  halt 404, 'Produto não encontrado' unless product
+  qty = product.quantity
+  if qty > 0
+    product.set_stock(0)
+    Movement.create(
+      product_id: product.id, kind: 'out',
+      quantity: qty,
+      reason: params[:reason] || 'Estoque zerado manualmente'
+    )
+    audit('zero_stock', 'products', record_id: product.id,
+          details: "Estoque zerado (#{qty} #{product.unit})")
+  end
+  redirect "/products/#{params[:id]}"
 end
 
 post '/products/:id/delete' do

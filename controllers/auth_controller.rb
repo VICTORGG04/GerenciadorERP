@@ -40,6 +40,15 @@ end
 post '/users' do
   require_admin!
 
+  # ── Limite por plano ────────────────────────────────────────────
+  unless feature?('unlimited_users')
+    count = DB.exec("SELECT COUNT(*) FROM users WHERE active = true")[0]['count'].to_i
+    if count >= max_users
+      @error = "Limite de #{max_users} usuários ativos atingido. Faça upgrade do plano."
+      halt erb(:'users/form')
+    end
+  end
+
   # ── Validações ──────────────────────────────────────────────────
   if params[:name].to_s.strip.empty?
     @error = 'O nome não pode estar em branco.'

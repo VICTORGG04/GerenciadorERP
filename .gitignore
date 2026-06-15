@@ -21,5 +21,8 @@ Gemfile.lock
 Thumbs.db
 tmp/
 
+# ── Licença (apenas uso local) ─────────────────────────────────────────────────
+GerarLicenca.rb
+
 # ── Empacotamento ──────────────────────────────────────────────────────────────
 *.deb

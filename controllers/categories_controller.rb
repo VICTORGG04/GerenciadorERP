@@ -20,6 +20,8 @@ end
 
 post '/categories/:id/delete' do
   require_admin!
-  Category.delete(params[:id])
+  unless Category.delete(params[:id])
+    flash(:error, 'Não é possível excluir: existem produtos vinculados a esta categoria. Reassign os produtos primeiro.')
+  end
   redirect '/categories'
 end
