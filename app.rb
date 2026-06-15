@@ -22,6 +22,7 @@ require_relative 'models/order'
 require_relative 'models/user'
 require_relative 'models/audit_log'
 require_relative 'models/import'
+require_relative 'models/license'
 
 # ─── Configuração ─────────────────────────────────────────────────────────────
 configure do
@@ -158,7 +159,12 @@ helpers do
     return nil unless signature == expected
     return nil if Time.now.to_i > expires.to_i
 
-    @_license_data = { plan: plan, expires: Time.at(expires.to_i), identifier: identifier }
+    @_license_data = {
+      plan: plan,
+      expires: Time.at(expires.to_i),
+      identifier: identifier,
+      license_ref: identifier&.match?(/\ALIC-\d+\z/i) ? identifier : nil
+    }
     plan
   end
 
@@ -168,7 +174,21 @@ helpers do
   end
 
   def license_holder
-    license_data&.dig(:identifier)
+    data = license_data
+    return nil unless data
+    if data[:license_ref]
+      info = license_info
+      return info.company_name if info
+    end
+    data[:identifier]
+  end
+
+  def license_info
+    ref = license_data&.dig(:license_ref)
+    return nil unless ref
+    License.find_by_ref(ref)
+  rescue
+    nil
   end
 
   def license_expires_at
@@ -204,6 +224,10 @@ helpers do
 
   def plan_label
     { 'free' => 'Free', 'gold' => 'Gold', 'platinum' => 'Platinum', 'enterprise' => 'Enterprise' }[current_plan] || 'Free'
+  end
+
+  def plan_color(plan)
+    { 'free' => '#565c7a', 'gold' => '#f59e0b', 'platinum' => '#6366f1', 'enterprise' => '#ef4444' }[plan] || '#565c7a'
   end
 
   # ── Auditoria ─────────────────────────────────────────────────────────────
@@ -283,3 +307,4 @@ require_relative 'controllers/reports_controller'
 require_relative 'controllers/backups_controller'
 require_relative 'controllers/audit_controller'
 require_relative 'controllers/import_controller'
+require_relative 'controllers/licenses_controller'

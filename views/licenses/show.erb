@@ -1,0 +1,71 @@
+<div class="page-header">
+  <h1>Licença <%= @license.license_ref %></h1>
+  <a href="/licenses" class="btn btn-ghost">← Todas as Licenças</a>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start">
+  <div class="card" style="grid-column:1/-1">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div class="card-title" style="margin-bottom:0">🔑 Token da Licença</div>
+      <span class="pill <%= @license.status_pill %>"><%= @license.status_label %></span>
+    </div>
+
+    <textarea class="input" readonly rows="2" style="font-family:'SF Mono','Fira Code',monospace;font-size:12px;cursor:text"
+      onclick="this.select()">LICENSE_TOKEN=<%= @license.license_token %></textarea>
+    <p style="color:var(--muted);font-size:12px;margin-top:8px">
+      Copie a linha acima e envie para o cliente. Ele deve colar no arquivo <code>.env</code> ou usar a página de ativação.
+    </p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📋 Dados da Licença</div>
+    <div style="display:flex;flex-direction:column;gap:8px;font-size:13px">
+      <div><strong>Referência:</strong> <code><%= @license.license_ref %></code></div>
+      <div><strong>Plano:</strong> <span class="badge" style="background:<%= plan_color(@license.plan) %>;color:#fff"><%= @license.plan_label %></span></div>
+      <div><strong>Expira em:</strong> <%= @license.expires_at_fmt %></div>
+      <div><strong>Status:</strong> <span class="pill <%= @license.status_pill %>"><%= @license.status_label %></span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🏢 Empresa</div>
+    <div style="display:flex;flex-direction:column;gap:8px;font-size:13px">
+      <div><strong>Razão Social:</strong> <%= h(@license.company_name) %></div>
+      <div><strong>CNPJ:</strong> <%= @license.cnpj ? h(@license.cnpj) : '<span style="color:var(--muted-2)">—</span>' %></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📍 Endereço</div>
+    <div style="display:flex;flex-direction:column;gap:8px;font-size:13px">
+      <div><%= [@license.address_street, @license.address_number, @license.address_complement].compact.reject(&:empty?).join(', ') %></div>
+      <div><%= [@license.address_neighborhood, @license.address_city, @license.address_state].compact.reject(&:empty?).join(' — ') %></div>
+      <div><%= @license.address_zip %></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📞 Contato</div>
+    <div style="display:flex;flex-direction:column;gap:8px;font-size:13px">
+      <div><strong>Nome:</strong> <%= @license.contact_name ? h(@license.contact_name) : '<span style="color:var(--muted-2)">—</span>' %></div>
+      <div><strong>E-mail:</strong> <%= @license.contact_email ? h(@license.contact_email) : '<span style="color:var(--muted-2)">—</span>' %></div>
+      <div><strong>Telefone:</strong> <%= @license.contact_phone ? h(@license.contact_phone) : '<span style="color:var(--muted-2)">—</span>' %></div>
+    </div>
+  </div>
+
+  <% if @license.notes && !@license.notes.empty? %>
+    <div class="card">
+      <div class="card-title">📝 Observações</div>
+      <div style="font-size:13px"><%= h(@license.notes) %></div>
+    </div>
+  <% end %>
+</div>
+
+<div style="margin-top:24px;display:flex;gap:12px">
+  <form method="post" action="/licenses/<%= @license.id %>"
+        onsubmit="return confirm('Excluir licença <%= h(@license.license_ref) %> — <%= h(@license.company_name) %>?')">
+    <input type="hidden" name="_method" value="delete">
+    <button class="btn btn-danger" type="submit">🗑 Excluir Licença</button>
+  </form>
+  <a href="/licenses" class="btn btn-ghost">← Voltar</a>
+</div>

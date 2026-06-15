@@ -74,6 +74,12 @@
         </a>
       <% end %>
     <% end %>
+    <% if defined?(current_user) && current_user&.admin? %>
+      <div class="nav-section-label">Admin</div>
+      <a href="/licenses" class="nav-item <%= nav_active('/licenses') %>">
+        🔑 <span>Licenças</span>
+      </a>
+    <% end %>
   </nav>
 
   <!-- Usuário logado -->
@@ -94,7 +100,8 @@
       </div>
     <% end %>
     <div class="plan-badge <%= current_plan %>">
-      <%= plan_label %><% if (holder = license_holder) %> — <%= h(holder) %><% end %>
+      <%= plan_label %><% if (holder = license_holder) %><br><span class="plan-holder"><%= h(holder) %></span><% end %>
+      <% if (lic = license_info) && lic.cnpj %><br><span class="plan-cnpj"><%= h(lic.cnpj) %></span><% end %>
     </div>
   </div>
 

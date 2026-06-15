@@ -137,6 +137,36 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 );
 SQL
 
+# =========================
+# LICENSES (gestão de clientes)
+# =========================
+DB.exec <<~SQL
+CREATE TABLE IF NOT EXISTS licenses (
+    id SERIAL PRIMARY KEY,
+    license_ref VARCHAR(50) UNIQUE NOT NULL,
+    plan VARCHAR(20) NOT NULL,
+    status VARCHAR(20) DEFAULT 'active',
+    company_name VARCHAR(255) NOT NULL,
+    cnpj VARCHAR(18),
+    address_street VARCHAR(255),
+    address_number VARCHAR(20),
+    address_complement VARCHAR(100),
+    address_neighborhood VARCHAR(100),
+    address_city VARCHAR(100),
+    address_state VARCHAR(2),
+    address_zip VARCHAR(9),
+    contact_name VARCHAR(255),
+    contact_email VARCHAR(255),
+    contact_phone VARCHAR(20),
+    notes TEXT,
+    license_token TEXT,
+    expires_at TIMESTAMP NOT NULL,
+    activated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+SQL
+
 puts "Tabelas criadas!"
 
 # =========================
