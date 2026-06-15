@@ -13,7 +13,7 @@ case "$1" in
     DB_USER="gerenciador_erp"
     DB_NAME="gerenciador_estoque"
     APP_USER="$PKG_NAME"
-    APP_PORT="${APP_PORT:-4567}"
+    APP_PORT="${APP_PORT:-4568}"
     CADDY_DIR="$APP_DIR/caddy"
     CADDYFILE_DIR="$ETC_DIR/caddy"
     CADDY_DATA_DIR="$DATA_DIR/caddy"
@@ -66,6 +66,10 @@ APP_HOST=127.0.0.1
 APP_PORT=$APP_PORT
 APP_ENV=production
 
+# ── Licença ───────────────────────────────────────────────────────────────────
+# Token de licença HMAC. Se vazio, o sistema roda como FREE.
+LICENSE_TOKEN=
+
 # ── Domínio público (para HTTPS via Caddy) ─────────────────────────────────────
 APP_DOMAIN=
 
@@ -81,13 +85,13 @@ EOF
     fi
 
     # Extrair porta atual do .env
-    APP_PORT=$(grep '^APP_PORT=' "$ETC_DIR/.env" | sed 's/^APP_PORT=//' || echo "4567")
+    APP_PORT=$(grep '^APP_PORT=' "$ETC_DIR/.env" | sed 's/^APP_PORT=//' || echo "4568")
 
     # ─── 4. Verificar conflito de porta ─────────────────────────────────────
     echo "  Verificando porta $APP_PORT..."
     if ss -tlnp "sport = :$APP_PORT" 2>/dev/null | grep -q .; then
       echo "  ⚠ Porta $APP_PORT ocupada. Buscando alternativa..."
-      for port in {4567..4599} {8080..8099} {3000..3099}; do
+      for port in {4568..4599} {8080..8099} {3000..3099}; do
         if ! ss -tlnp "sport = :$port" 2>/dev/null | grep -q .; then
           sed -i "s/^APP_PORT=.*/APP_PORT=$port/" "$ETC_DIR/.env"
           APP_PORT=$port
@@ -164,7 +168,7 @@ EOF
     echo ">>> Configurando proxy HTTPS (Caddy)..."
     mkdir -p "$CADDY_DATA_DIR" "$CADDYFILE_DIR"
 
-    APP_PORT=$(grep '^APP_PORT=' "$ETC_DIR/.env" | sed 's/^APP_PORT=//' || echo "4567")
+    APP_PORT=$(grep '^APP_PORT=' "$ETC_DIR/.env" | sed 's/^APP_PORT=//' || echo "4568")
     APP_DOMAIN=$(grep '^APP_DOMAIN=' "$ETC_DIR/.env" | sed 's/^APP_DOMAIN=//' || echo "")
 
     if [ -n "$APP_DOMAIN" ]; then

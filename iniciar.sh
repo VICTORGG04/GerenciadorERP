@@ -32,7 +32,7 @@ elif [ -f "$ETC_ENV" ]; then
   source "$ETC_ENV"
 fi
 
-PORT="${APP_PORT:-4567}"
+PORT="${APP_PORT:-4568}"
 HOST="${APP_HOST:-127.0.0.1}"
 DOMAIN="${APP_DOMAIN:-}"
 

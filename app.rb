@@ -30,7 +30,7 @@ configure do
   enable :sessions
   set :session_secret, ENV.fetch('SESSION_SECRET', SecureRandom.hex(64))
   set :bind, ENV.fetch('APP_HOST', '0.0.0.0')
-  set :port, ENV.fetch('APP_PORT', 4567).to_i
+  set :port, ENV.fetch('APP_PORT', 4568).to_i
 end
 
 # ─── Services ──────────────────────────────────────────────────────────────────
@@ -111,6 +111,8 @@ helpers do
 
   # ── Licença HMAC ──────────────────────────────────────────────────────────
   def env_path
+    prod_env = '/etc/gerenciador-erp/.env'
+    return prod_env if File.exist?(prod_env)
     File.expand_path('.env', settings.root || __dir__)
   end
 
@@ -118,7 +120,7 @@ helpers do
     p = env_path
     return nil unless File.exist?(p)
     File.readlines(p).each do |line|
-      return $1.strip if line =~ /\ALICENSE_TOKEN=(.+)\z/
+      return $1.strip if line.strip =~ /\ALICENSE_TOKEN=(.+)\z/
     end
     nil
   rescue
@@ -140,17 +142,17 @@ helpers do
 
   def validate_license!
     token = read_license_token
-    return 'free' unless token
+    return nil unless token
 
     parts = token.split('.')
-    return 'free' unless parts.length == 3
+    return nil unless parts.length == 3
 
     plan, expires, signature = parts
     data = "#{plan}.#{expires}"
 
     expected = OpenSSL::HMAC.hexdigest('SHA256', LICENSE_SECRET, data)
-    return 'free' unless signature == expected
-    return 'free' if Time.now.to_i > expires.to_i
+    return nil unless signature == expected
+    return nil if Time.now.to_i > expires.to_i
 
     plan
   end
@@ -166,7 +168,7 @@ helpers do
   end
 
   def current_plan
-    @_current_plan ||= validate_license!
+    @_current_plan ||= validate_license! || 'free'
   end
 
   # ── Planos / Features ────────────────────────────────────────────────────
@@ -214,10 +216,10 @@ end
 before do
   pass if request.path_info == '/license'
   pass if request.path_info.start_with?('/public')
-  pass if request.path_info.start_with?('/login') && validate_license! != 'free'
+  pass if request.path_info.start_with?('/login') && validate_license!
 
   plan = validate_license!
-  if plan == 'free'
+  unless plan
     if read_license_token
       @expired_plan = read_license_token.to_s.split('.')[0] rescue ''
       @expired_at   = license_expires_at&.strftime('%d/%m/%Y') rescue ''

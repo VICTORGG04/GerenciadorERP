@@ -2,7 +2,7 @@
 
 # ── Licença (ativação) ────────────────────────────────────────────
 get '/license' do
-  redirect '/login' if validate_license! != 'free'
+  redirect '/login' if validate_license!
   erb :'license', layout: false
 end
 

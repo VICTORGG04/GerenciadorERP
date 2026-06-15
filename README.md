@@ -201,7 +201,7 @@ psql -U SEU.USUARIO -d gerenciador_estoque -c \
 bundle exec ruby app.rb
 ```
 
-Acesse no navegador: [http://localhost:4567](http://localhost:4567)
+Acesse no navegador: [http://localhost:4568](http://localhost:4568)
 
 Para parar o servidor: `Ctrl + C`
 
@@ -249,7 +249,7 @@ O app mobile **não processa nada localmente**. Ele é um WebView — uma janela
 ```
 [Celular / Tablet]  ◄── Wi-Fi ──►  [PC da Empresa]
   APK Android                       Ruby + Sinatra + PostgreSQL
-  PWA iPhone                        Porta: 4567
+  PWA iPhone                        Porta: 4568
 ```
 
 > ⚠️ O celular e o computador **devem** estar conectados ao mesmo Wi-Fi para o app funcionar.
@@ -267,22 +267,22 @@ Logo após o bloco `DB = PG.connect(...)`, adicione:
 ```ruby
 # Aceita conexões de qualquer IP da rede local
 set :bind, '0.0.0.0'
-set :port, 4567
+set :port, 4568
 ```
 
 ### 2. Libere a porta no firewall
 
 **Linux:**
 ```bash
-sudo ufw allow 4567/tcp
+sudo ufw allow 4568/tcp
 sudo ufw reload
 
 # Verificar:
-sudo ufw status | grep 4567
+sudo ufw status | grep 4568
 ```
 
 **Windows:**
-Painel de Controle → Firewall do Windows → Regras de Entrada → Nova Regra → Porta → TCP → 4567 → Permitir
+Painel de Controle → Firewall do Windows → Regras de Entrada → Nova Regra → Porta → TCP → 4568 → Permitir
 
 ### 3. Descubra o IP do servidor
 
@@ -306,7 +306,7 @@ cd ~/RubymineProjects/GerenciadorClaude
 bundle exec ruby app.rb
 
 # Saída esperada — deve ser 0.0.0.0, não 127.0.0.1:
-# * Listening on http://0.0.0.0:4567
+# * Listening on http://0.0.0.0:4568
 ```
 
 ---
@@ -388,7 +388,7 @@ Abra o gerenciador de arquivos → pasta Downloads → toque em `app-debug.apk` 
 Na primeira abertura aparecerá a tela de configuração:
 
 - **IP do Servidor:** `192.168.0.6` (o IP do seu PC)
-- **Porta:** `4567`
+- **Porta:** `4568`
 - Toque em **"Conectar"** — ou use **"Encontrar servidor automaticamente"**
 
 > O app salva essa configuração. Nas próximas aberturas vai direto para o sistema.
@@ -468,7 +468,7 @@ Não é necessário nenhum arquivo de instalação. O Safari salva o sistema com
 **2. Abra o Safari e acesse o sistema**
 
 ```
-http://192.168.0.6:4567
+http://192.168.0.6:4568
 ```
 
 (substitua pelo IP do seu servidor)
@@ -591,21 +591,21 @@ Substitua na linha 63 do `views/layout.erb`:
 <%= current_user.name.split.map { |w| w[0] }.first(2).join.upcase %>
 ```
 
-### Porta 4567 já em uso
+### Porta 4568 já em uso
 ```bash
 # Linux
-lsof -ti:4567 | xargs kill -9
+lsof -ti:4568 | xargs kill -9
 
 # Windows
-netstat -ano | findstr :4567
+netstat -ano | findstr :4568
 taskkill /PID <PID> /F
 ```
 
 ### App mobile mostra "Servidor não encontrado"
 - Verifique se o servidor Ruby está rodando no PC
-- Confirme que aparece `0.0.0.0:4567` (não `127.0.0.1`)
+- Confirme que aparece `0.0.0.0:4568` (não `127.0.0.1`)
 - Certifique-se que celular e PC estão no mesmo Wi-Fi
-- Teste abrindo `http://IP:4567` no navegador do celular
+- Teste abrindo `http://IP:4568` no navegador do celular
 
 ### `adb devices` mostra `unauthorized`
 ```bash
