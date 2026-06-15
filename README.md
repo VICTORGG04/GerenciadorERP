@@ -207,91 +207,38 @@ Para parar o servidor: `Ctrl + C`
 
 ---
 
-## Executável — Linux
+## Instalação automática (qualquer plataforma)
 
-Crie o arquivo `iniciar.sh` na raiz do projeto:
+Cada plataforma possui um script auto-contido em `APK--DEB--BAT(Software)/` que:
 
-```bash
-#!/bin/bash
-cd "$(dirname "$0")"
-echo "🚀 Iniciando ERP Gerenciador de Estoque..."
-bundle exec ruby app.rb &
-sleep 2
-xdg-open http://localhost:4567
-echo "✅ Servidor rodando em http://localhost:4567"
-echo "   Para parar: pkill -f 'ruby app.rb'"
-```
+1. **Detecta** se você já está dentro do repositório clonado
+2. **Se não estiver**, baixa o projeto do GitHub **sem precisar de conta GitHub** (usa ZIP via `curl`/`wget`)
+3. **Instala** dependências e configura o ambiente
+4. **Inicia** o servidor
 
-Torne executável e rode:
+| Plataforma | Comando |
+|------------|---------|
+| 🐧 **Linux** (Debian/Ubuntu) | `cd APK--DEB--BAT\(Software\)/linux && sudo bash install.sh` |
+| 🪟 **Windows** | `cd APK--DEB--BAT\(Software\)/windows` → `setup.bat` (como Administrador) |
+| 🍎 **macOS** | Duplo clique em `APK--DEB--BAT\(Software\)/macos/start.command` |
+| 🐳 **Docker** | `cd APK--DEB--BAT\(Software\)/docker && bash install.sh` |
+| 📱 **Android** | Copiar `APK--DEB--BAT\(Software\)/android/GerenciadorERP-Android.apk` para o celular |
+| 🌐 **PWA** | `cd APK--DEB--BAT\(Software\)/pwa && bash install.sh` (dentro do repositório) |
 
-```bash
-chmod +x iniciar.sh
-./iniciar.sh
-```
+> **Não precisa de conta GitHub.** O repositório é público e os scripts baixam via ZIP quando `git` não está disponível.
 
-Para parar o servidor:
+### Instalação manual (qualquer SO)
 
 ```bash
-pkill -f "ruby app.rb"
-```
-
-### Atalho no menu do sistema (Linux com desktop)
-
-Crie o arquivo `~/.local/share/applications/gerenciador-erp.desktop`:
-
-```ini
-[Desktop Entry]
-Name=ERP Gerenciador de Estoque
-Comment=Sistema de gerenciamento de estoque
-Exec=/home/victor/RubymineProjects/GerenciadorClaude/iniciar.sh
-Icon=utilities-system-monitor
-Terminal=false
-Type=Application
-Categories=Office;
-```
-
----
-
-## Executável — Windows
-
-### Pré-requisitos Windows
-
-1. Instale o [RubyInstaller 3.2.x (with Devkit)](https://rubyinstaller.org/downloads/)
-2. Instale o [PostgreSQL para Windows](https://www.enterprisedb.com/downloads/postgres-postgresql-downloads)
-3. Abra o **Start Command Prompt with Ruby** e instale o Bundler:
-   ```cmd
-   gem install bundler
-   ```
-
-### Instalar dependências
-
-```cmd
+git clone https://github.com/VICTORGG04/GerenciadorClaude.git
+cd GerenciadorClaude
 bundle install
-```
-
-### Script de execução
-
-Crie o arquivo `iniciar.bat` na raiz do projeto:
-
-```bat
-@echo off
-title ERP Gerenciador de Estoque
-cd /d "%~dp0"
-echo Iniciando ERP Gerenciador de Estoque...
-start "" http://localhost:4567
+# Configure o .env (veja .env.example)
+ruby db/setup.rb
 bundle exec ruby app.rb
-pause
 ```
 
-Dê duplo clique em `iniciar.bat` para iniciar. O navegador abrirá automaticamente.
-
-### Atalho na área de trabalho (Windows)
-
-1. Clique com botão direito em `iniciar.bat`
-2. Selecione **Criar atalho**
-3. Mova o atalho para a Área de Trabalho
-
-> ⚠️ No Windows, a gem `pg` exige que o PostgreSQL esteja instalado e que o caminho `C:\Program Files\PostgreSQL\XX\bin` esteja na variável de ambiente `PATH`.
+Acesse: [http://localhost:4568](http://localhost:4568)
 
 ---
 

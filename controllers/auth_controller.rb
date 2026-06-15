@@ -1,5 +1,46 @@
 # controllers/auth_controller.rb
 
+# ── Licença (ativação) ────────────────────────────────────────────
+get '/license' do
+  redirect '/login' if validate_license! != 'free'
+  erb :'license', layout: false
+end
+
+post '/license' do
+  token = params[:license_token].to_s.strip
+  if token.empty?
+    @error = 'Informe o token de licença.'
+    return erb(:'license', layout: false)
+  end
+
+  parts = token.split('.')
+  if parts.length != 3
+    @error = 'Token inválido. Verifique se copiou corretamente.'
+    return erb(:'license', layout: false)
+  end
+
+  data = "#{parts[0]}.#{parts[1]}"
+  expected = OpenSSL::HMAC.hexdigest('SHA256', LICENSE_SECRET, data)
+  if parts[2] != expected
+    @error = 'Token inválido ou corrompido. Verifique com o suporte.'
+    return erb(:'license', layout: false)
+  end
+
+  if Time.now.to_i > parts[1].to_i
+    @error = 'Este token já expirou. Solicite uma nova licença.'
+    return erb(:'license', layout: false)
+  end
+
+  begin
+    save_license_token!(token)
+    flash 'ok', "Licença #{parts[0].capitalize} ativada com sucesso!"
+    redirect '/login'
+  rescue => e
+    @error = "Erro ao salvar licença: #{e.message}. Edite o arquivo .env manualmente."
+    erb :'license', layout: false
+  end
+end
+
 # ── Login ─────────────────────────────────────────────────────────
 get '/login' do
   redirect '/' if current_user

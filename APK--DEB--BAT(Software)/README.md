@@ -1,0 +1,41 @@
+# 📦 Gerenciador ERP — Plataformas
+
+Pacotes e scripts para instalar o servidor ERP em diferentes sistemas operacionais.
+
+## Instalação rápida
+
+Cada pasta contém um script de instalação auto-contido:
+
+| Plataforma | Comando |
+|------------|---------|
+| 🐧 Linux | `cd linux && sudo bash install.sh` |
+| 🪟 Windows | `cd windows && setup.bat` (como Administrador) |
+| 🍎 macOS | Duplo clique em `macos/start.command` |
+| 🐳 Docker | `cd docker && bash install.sh` |
+| 📱 Android | Copiar `android/GerenciadorERP-Android.apk` para o celular |
+| 🌐 PWA | `cd pwa && bash install.sh` (dentro do repositório) |
+
+## Como funciona
+
+Cada script:
+1. **Detecta** se está dentro do repositório clonado (procura `app.rb`)
+2. **Se não estiver**, clona o projeto do GitHub automaticamente
+3. **Instala** as dependências e configura o ambiente
+4. **Inicia** o servidor
+
+## Estrutura
+
+```
+📁 android/   → APK + instruções
+📁 docker/    → Dockerfile + docker-compose + install.sh
+📁 linux/     → .deb + systemd + build.sh + install.sh
+📁 macos/     → .app bundle + LaunchAgents + start.command
+📁 pwa/       → manifest.json + service-worker.js + install.sh
+📁 windows/   → .bat + .ps1 + setup.bat
+```
+
+## Acesso padrão
+
+- **URL:** `http://localhost:4568`
+- **Login:** `admin@gerenciador.local`
+- **Senha:** `admin123`

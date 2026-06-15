@@ -110,8 +110,36 @@ helpers do
   end
 
   # ── Licença HMAC ──────────────────────────────────────────────────────────
+  def env_path
+    File.expand_path('.env', settings.root || __dir__)
+  end
+
+  def read_license_token
+    p = env_path
+    return nil unless File.exist?(p)
+    File.readlines(p).each do |line|
+      return $1.strip if line =~ /\ALICENSE_TOKEN=(.+)\z/
+    end
+    nil
+  rescue
+    nil
+  end
+
+  def save_license_token!(token)
+    p = env_path
+    content = File.exist?(p) ? File.read(p) : File.read(File.expand_path('.env.example', settings.root || __dir__))
+    if content =~ /^LICENSE_TOKEN=.*$/
+      content.sub!(/^LICENSE_TOKEN=.*$/, "LICENSE_TOKEN=#{token}")
+    else
+      content += "\nLICENSE_TOKEN=#{token}\n"
+    end
+    File.write(p, content)
+    @_license_token = nil
+    @_current_plan = nil
+  end
+
   def validate_license!
-    token = ENV['LICENSE_TOKEN']
+    token = read_license_token
     return 'free' unless token
 
     parts = token.split('.')
@@ -127,8 +155,18 @@ helpers do
     plan
   end
 
+  def license_expires_at
+    token = read_license_token
+    return nil unless token
+    parts = token.split('.')
+    return nil unless parts.length == 3
+    Time.at(parts[1].to_i)
+  rescue
+    nil
+  end
+
   def current_plan
-    @current_plan ||= validate_license!
+    @_current_plan ||= validate_license!
   end
 
   # ── Planos / Features ────────────────────────────────────────────────────
@@ -174,8 +212,20 @@ end
 
 # ─── Proteção global ──────────────────────────────────────────────────────────
 before do
-  pass if request.path_info.start_with?('/login')
+  pass if request.path_info == '/license'
   pass if request.path_info.start_with?('/public')
+  pass if request.path_info.start_with?('/login') && validate_license! != 'free'
+
+  plan = validate_license!
+  if plan == 'free'
+    if read_license_token
+      @expired_plan = read_license_token.to_s.split('.')[0] rescue ''
+      @expired_at   = license_expires_at&.strftime('%d/%m/%Y') rescue ''
+      session.clear
+    end
+    redirect '/license'
+  end
+
   require_login!
 end
 
