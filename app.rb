@@ -142,29 +142,37 @@ helpers do
 
   def validate_license!
     token = read_license_token
+    @_license_data = nil
     return nil unless token
 
     parts = token.split('.')
-    return nil unless parts.length == 3
+    return nil unless parts.length == 3 || parts.length == 4
 
-    plan, expires, signature = parts
-    data = "#{plan}.#{expires}"
+    plan, expires, *rest = parts
+    identifier = rest.length == 2 ? rest[0] : nil
+    signature  = rest.last
+
+    data = identifier ? "#{plan}.#{expires}.#{identifier}" : "#{plan}.#{expires}"
 
     expected = OpenSSL::HMAC.hexdigest('SHA256', LICENSE_SECRET, data)
     return nil unless signature == expected
     return nil if Time.now.to_i > expires.to_i
 
+    @_license_data = { plan: plan, expires: Time.at(expires.to_i), identifier: identifier }
     plan
   end
 
+  def license_data
+    validate_license! if @_license_data.nil?
+    @_license_data
+  end
+
+  def license_holder
+    license_data&.dig(:identifier)
+  end
+
   def license_expires_at
-    token = read_license_token
-    return nil unless token
-    parts = token.split('.')
-    return nil unless parts.length == 3
-    Time.at(parts[1].to_i)
-  rescue
-    nil
+    license_data&.dig(:expires)
   end
 
   def current_plan

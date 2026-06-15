@@ -14,26 +14,31 @@ post '/license' do
   end
 
   parts = token.split('.')
-  if parts.length != 3
+  if parts.length != 3 && parts.length != 4
     @error = 'Token inválido. Verifique se copiou corretamente.'
     return erb(:'license', layout: false)
   end
 
-  data = "#{parts[0]}.#{parts[1]}"
+  plan, expires, *rest = parts
+  identifier = rest.length == 2 ? rest[0] : nil
+  signature  = rest.last
+
+  data = identifier ? "#{plan}.#{expires}.#{identifier}" : "#{plan}.#{expires}"
   expected = OpenSSL::HMAC.hexdigest('SHA256', LICENSE_SECRET, data)
-  if parts[2] != expected
+  if signature != expected
     @error = 'Token inválido ou corrompido. Verifique com o suporte.'
     return erb(:'license', layout: false)
   end
 
-  if Time.now.to_i > parts[1].to_i
+  if Time.now.to_i > expires.to_i
     @error = 'Este token já expirou. Solicite uma nova licença.'
     return erb(:'license', layout: false)
   end
 
   begin
     save_license_token!(token)
-    flash 'ok', "Licença #{parts[0].capitalize} ativada com sucesso!"
+    msg = identifier ? "Licença #{plan.capitalize} ativada para #{identifier}!" : "Licença #{plan.capitalize} ativada com sucesso!"
+    flash 'ok', msg
     redirect '/login'
   rescue => e
     @error = "Erro ao salvar licença: #{e.message}. Edite o arquivo .env manualmente."

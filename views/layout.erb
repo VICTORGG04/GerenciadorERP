@@ -94,7 +94,7 @@
       </div>
     <% end %>
     <div class="plan-badge <%= current_plan %>">
-      <%= plan_label %>
+      <%= plan_label %><% if (holder = license_holder) %> — <%= h(holder) %><% end %>
     </div>
   </div>
 
