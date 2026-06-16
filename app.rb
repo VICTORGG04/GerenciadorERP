@@ -3,7 +3,18 @@ require 'sinatra'
 require 'pg'
 require 'bcrypt'
 require 'openssl'
+require 'base64'
 
+# Chave pública Ed25519 — usada para verificar tokens assinados.
+# A chave privada fica apenas com o desenvolvedor (chave_privada.pem, gitignored).
+ED25519_PUBLIC_KEY = <<~'PEM'
+-----BEGIN PUBLIC KEY-----
+MCowBQYDK2VwAyEAhxK+waqxnEOL7liJJZ+I6yJyUVvWN/TvSQREDDS8NrI=
+-----END PUBLIC KEY-----
+PEM
+
+# LICENSE_SECRET mantido apenas para validar tokens antigos (HMAC-SHA256).
+# Tokens novos usam Ed25519.
 LICENSE_SECRET = ENV.fetch('LICENSE_SECRET', '2e3ebbbfee26ec5a6d532212b4b02897ecbcec290d5019f3fea10546cdcf1e79').freeze
 
 # ─── Banco de dados ───────────────────────────────────────────────────────────
@@ -110,7 +121,7 @@ helpers do
     { type: type, msg: msg }
   end
 
-  # ── Licença HMAC ──────────────────────────────────────────────────────────
+  # ── Licença (Ed25519 + backward compat HMAC) ─────────────────────────────
   def env_path
     prod_env = '/etc/gerenciador-erp/.env'
     return prod_env if File.exist?(prod_env)
@@ -141,31 +152,43 @@ helpers do
     @_current_plan = nil
   end
 
-  def validate_license!
-    token = read_license_token
-    @_license_data = nil
-    return nil unless token
-
-    parts = token.split('.')
+  # Valida um token string e retorna hash com dados ou nil.
+  # Aceita:
+  #   - Ed25519 (4 partes, assinatura base64url com ~88 chars)
+  #   - HMAC-SHA256 legado (3 ou 4 partes, assinatura hex 64 chars)
+  def validate_token(token)
+    parts = token.to_s.split('.')
     return nil unless parts.length == 3 || parts.length == 4
 
     plan, expires, *rest = parts
     identifier = rest.length == 2 ? rest[0] : nil
     signature  = rest.last
-
     data = identifier ? "#{plan}.#{expires}.#{identifier}" : "#{plan}.#{expires}"
 
-    expected = OpenSSL::HMAC.hexdigest('SHA256', LICENSE_SECRET, data)
-    return nil unless signature == expected
+    if signature =~ /\A[a-f0-9]{64}\z/
+      expected = OpenSSL::HMAC.hexdigest('SHA256', LICENSE_SECRET, data)
+      return nil unless OpenSSL.secure_compare(expected, signature)
+    else
+      pub = OpenSSL::PKey.read(ED25519_PUBLIC_KEY)
+      sig_bytes = Base64.urlsafe_decode64(signature)
+      return nil unless pub.verify(nil, sig_bytes, data)
+    end
+
     return nil if Time.now.to_i > expires.to_i
 
-    @_license_data = {
+    {
       plan: plan,
       expires: Time.at(expires.to_i),
       identifier: identifier,
       license_ref: identifier&.match?(/\ALIC-\d+\z/i) ? identifier : nil
     }
-    plan
+  rescue ArgumentError, OpenSSL::PKey::PKeyError
+    nil
+  end
+
+  def validate_license!
+    @_license_data = validate_token(read_license_token)
+    @_license_data&.dig(:plan)
   end
 
   def license_data

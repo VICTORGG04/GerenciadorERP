@@ -60,21 +60,14 @@ patch '/licenses/:id/token' do
     return erb :'licenses/show'
   end
 
-  plan, expires, ref, signature = parts
+  ref = parts[2]
   unless ref == @license.license_ref
     @error = "Token refere-se a #{ref}, mas esta licença é #{@license.license_ref}."
     return erb :'licenses/show'
   end
 
-  data = "#{plan}.#{expires}.#{ref}"
-  expected = OpenSSL::HMAC.hexdigest('SHA256', LICENSE_SECRET, data)
-  if signature != expected
-    @error = 'Token inválido — assinatura não confere.'
-    return erb :'licenses/show'
-  end
-
-  if Time.now.to_i > expires.to_i
-    @error = 'Token expirado.'
+  unless validate_token(token)
+    @error = 'Token inválido — assinatura não confere ou expirou.'
     return erb :'licenses/show'
   end
 
