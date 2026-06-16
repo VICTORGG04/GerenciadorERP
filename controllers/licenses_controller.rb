@@ -55,15 +55,12 @@ patch '/licenses/:id/token' do
   end
 
   parts = token.split('.')
-  if parts.length != 4
-    @error = 'Token inválido. Deve ter 4 campos separados por ponto.'
-    return erb :'licenses/show'
-  end
-
-  ref = parts[2]
-  unless ref == @license.license_ref
-    @error = "Token refere-se a #{ref}, mas esta licença é #{@license.license_ref}."
-    return erb :'licenses/show'
+  if parts.length >= 3
+    token_id = parts.length > 3 ? parts[2..-2].join('.') : nil
+    if token_id && token_id != @license.license_ref && token_id != @license.cnpj.to_s
+      @error = "Token refere-se a #{token_id}, mas esta licença é #{@license.license_ref}."
+      return erb :'licenses/show'
+    end
   end
 
   unless validate_token(token)
