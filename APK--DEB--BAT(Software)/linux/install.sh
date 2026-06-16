@@ -136,6 +136,8 @@ if [ -z "$DEB_FILE" ] || [ ! -f "$DEB_FILE" ]; then
     exit 1
 fi
 
+# Converter para caminho absoluto (com ./ para apt reconhecer como arquivo local)
+DEB_FILE="$(cd "$(dirname "$DEB_FILE")" 2>/dev/null && pwd)/$(basename "$DEB_FILE")"
 echo ">>> Instalando pacote: $DEB_FILE"
 apt install -y "$DEB_FILE"
 

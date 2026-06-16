@@ -89,8 +89,8 @@ EOF
 
     # ─── 4. Verificar conflito de porta ─────────────────────────────────────
     echo "  Verificando porta $APP_PORT..."
-    if ss -tlnp "sport = :$APP_PORT" 2>/dev/null | grep -q .; then
-      PID=$(ss -tlnp "sport = :$APP_PORT" 2>/dev/null | grep -oP 'pid=\K\d+' || true)
+    if ss -tlnp "sport = :$APP_PORT" 2>/dev/null | grep -q LISTEN; then
+      PID=$(ss -tlnp "sport = :$APP_PORT" 2>/dev/null | sed -n 's/.*pid=\([0-9]*\).*/\1/p')
       if [ -n "$PID" ]; then
         echo "  ⚠ Porta $APP_PORT ocupada (PID=$PID). Tentando liberar..."
         if command -v fuser &>/dev/null; then
@@ -99,7 +99,7 @@ EOF
           kill -9 "$PID" 2>/dev/null || true
         fi
         sleep 1
-        if ss -tlnp "sport = :$APP_PORT" 2>/dev/null | grep -q .; then
+        if ss -tlnp "sport = :$APP_PORT" 2>/dev/null | grep -q LISTEN; then
           echo "  ⚠ Não foi possível liberar a porta $APP_PORT. Buscando alternativa..."
         else
           echo "  ✓ Porta $APP_PORT liberada"
@@ -108,9 +108,9 @@ EOF
         echo "  ⚠ Porta $APP_PORT ocupada (PID não identificado). Buscando alternativa..."
       fi
       # Se ainda ocupada ou PID não identificado, busca alternativa
-      if ss -tlnp "sport = :$APP_PORT" 2>/dev/null | grep -q .; then
+      if ss -tlnp "sport = :$APP_PORT" 2>/dev/null | grep -q LISTEN; then
         for port in {4568..4599} {8080..8099} {3000..3099}; do
-          if ! ss -tlnp "sport = :$port" 2>/dev/null | grep -q .; then
+          if ! ss -tlnp "sport = :$port" 2>/dev/null | grep -q LISTEN; then
             sed -i "s/^APP_PORT=.*/APP_PORT=$port/" "$ETC_DIR/.env"
             APP_PORT=$port
             echo "  ✓ Porta alterada para $port"
