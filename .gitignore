@@ -24,6 +24,7 @@ tmp/
 # ── Licença (apenas uso local) ─────────────────────────────────────────────────
 GerarLicenca.rb
 chave_privada.pem
+chave_publica.pem
 
 # ── Empacotamento ──────────────────────────────────────────────────────────────
 *.deb
