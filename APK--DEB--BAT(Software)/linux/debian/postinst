@@ -90,12 +90,25 @@ EOF
     # ─── 4. Verificar conflito de porta ─────────────────────────────────────
     echo "  Verificando porta $APP_PORT..."
     if ss -tlnp "sport = :$APP_PORT" 2>/dev/null | grep -q .; then
-      PID=$(ss -tlnp "sport = :$APP_PORT" 2>/dev/null | grep -oP 'pid=\K\d+')
-      echo "  ⚠ Porta $APP_PORT ocupada (PID=$PID). Tentando liberar..."
-      fuser -k "${APP_PORT}/tcp" 2>/dev/null || kill -9 "$PID" 2>/dev/null || true
-      sleep 1
+      PID=$(ss -tlnp "sport = :$APP_PORT" 2>/dev/null | grep -oP 'pid=\K\d+' || true)
+      if [ -n "$PID" ]; then
+        echo "  ⚠ Porta $APP_PORT ocupada (PID=$PID). Tentando liberar..."
+        if command -v fuser &>/dev/null; then
+          fuser -k "${APP_PORT}/tcp" 2>/dev/null || true
+        else
+          kill -9 "$PID" 2>/dev/null || true
+        fi
+        sleep 1
+        if ss -tlnp "sport = :$APP_PORT" 2>/dev/null | grep -q .; then
+          echo "  ⚠ Não foi possível liberar a porta $APP_PORT. Buscando alternativa..."
+        else
+          echo "  ✓ Porta $APP_PORT liberada"
+        fi
+      else
+        echo "  ⚠ Porta $APP_PORT ocupada (PID não identificado). Buscando alternativa..."
+      fi
+      # Se ainda ocupada ou PID não identificado, busca alternativa
       if ss -tlnp "sport = :$APP_PORT" 2>/dev/null | grep -q .; then
-        echo "  ⚠ Não foi possível liberar a porta $APP_PORT. Buscando alternativa..."
         for port in {4568..4599} {8080..8099} {3000..3099}; do
           if ! ss -tlnp "sport = :$port" 2>/dev/null | grep -q .; then
             sed -i "s/^APP_PORT=.*/APP_PORT=$port/" "$ETC_DIR/.env"
@@ -104,8 +117,6 @@ EOF
             break
           fi
         done
-      else
-        echo "  ✓ Porta $APP_PORT liberada"
       fi
     fi
 
@@ -150,11 +161,14 @@ EOF
     # ─── 10. Schema/seed ────────────────────────────────────────────────────
     echo ">>> Executando db/setup.rb..."
     cd "$APP_DIR"
-    if sudo -u "$APP_USER" DB_PASSWORD="$DB_PASS" bundle exec ruby db/setup.rb; then
+    SETUP_LOG="$LOG_DIR/setup.log"
+    if sudo -u "$APP_USER" DB_PASSWORD="$DB_PASS" bundle exec ruby db/setup.rb >"$SETUP_LOG" 2>&1; then
       echo "  ✓ Schema e seed executados"
     else
       echo "  ❌ Falha ao executar db/setup.rb"
-      echo "  Tente: cd $APP_DIR && sudo -u $APP_USER bundle exec ruby db/setup.rb"
+      echo "     Log: $SETUP_LOG"
+      tail -20 "$SETUP_LOG" 2>/dev/null | sed 's/^/     /'
+      echo "  Tente manualmente: cd $APP_DIR && sudo -u $APP_USER bundle exec ruby db/setup.rb"
       exit 1
     fi
 
