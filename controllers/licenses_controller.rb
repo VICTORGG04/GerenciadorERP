@@ -35,16 +35,52 @@ post '/licenses' do
       expires_at:          expires.strftime('%Y-%m-%d %H:%M:%S')
     )
 
-    token = License.generate_token(params[:plan], expires, lic.license_ref)
-    License.update_token(lic.id, token)
-
-    flash 'ok', "Licença #{lic.license_ref} (#{params[:company_name]}) criada com sucesso!"
+    flash 'ok', "Cliente #{params[:company_name]} cadastrado como #{lic.license_ref}!"
     redirect "/licenses/#{lic.id}"
   rescue => e
-    @error = "Erro ao criar licença: #{e.message}"
+    @error = "Erro ao cadastrar cliente: #{e.message}"
     @license = OpenStruct.new(params)
     erb :'licenses/form'
   end
+end
+
+patch '/licenses/:id/token' do
+  @license = License.find(params[:id])
+  halt 404, 'Licença não encontrada' unless @license
+
+  token = params[:license_token].to_s.strip
+  if token.empty?
+    @error = 'Informe o token.'
+    return erb :'licenses/show'
+  end
+
+  parts = token.split('.')
+  if parts.length != 4
+    @error = 'Token inválido. Deve ter 4 campos separados por ponto.'
+    return erb :'licenses/show'
+  end
+
+  plan, expires, ref, signature = parts
+  unless ref == @license.license_ref
+    @error = "Token refere-se a #{ref}, mas esta licença é #{@license.license_ref}."
+    return erb :'licenses/show'
+  end
+
+  data = "#{plan}.#{expires}.#{ref}"
+  expected = OpenSSL::HMAC.hexdigest('SHA256', LICENSE_SECRET, data)
+  if signature != expected
+    @error = 'Token inválido — assinatura não confere.'
+    return erb :'licenses/show'
+  end
+
+  if Time.now.to_i > expires.to_i
+    @error = 'Token expirado.'
+    return erb :'licenses/show'
+  end
+
+  License.update_token(@license.id, token)
+  flash 'ok', "Token salvo para #{@license.license_ref} (#{@license.company_name})!"
+  redirect "/licenses/#{@license.id}"
 end
 
 get '/licenses/:id' do

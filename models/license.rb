@@ -1,5 +1,4 @@
 require_relative 'base'
-require 'openssl'
 
 class License
   extend BaseModel
@@ -104,11 +103,5 @@ class License
     "LIC-#{count.to_s.rjust(3, '0')}"
   end
 
-  def self.generate_token(plan, expires_at, ref)
-    secret = ENV.fetch('LICENSE_SECRET', '2e3ebbbfee26ec5a6d532212b4b02897ecbcec290d5019f3fea10546cdcf1e79')
-    exp_i  = expires_at.is_a?(Time) ? expires_at.to_i : Time.parse(expires_at.to_s).to_i
-    data   = "#{plan}.#{exp_i}.#{ref}"
-    sig    = OpenSSL::HMAC.hexdigest('SHA256', secret, data)
-    "#{plan}.#{exp_i}.#{ref}.#{sig}"
-  end
+
 end

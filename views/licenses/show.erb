@@ -10,11 +10,27 @@
       <span class="pill <%= @license.status_pill %>"><%= @license.status_label %></span>
     </div>
 
-    <textarea class="input" readonly rows="2" style="font-family:'SF Mono','Fira Code',monospace;font-size:12px;cursor:text"
-      onclick="this.select()">LICENSE_TOKEN=<%= @license.license_token %></textarea>
-    <p style="color:var(--muted);font-size:12px;margin-top:8px">
-      Copie a linha acima e envie para o cliente. Ele deve colar no arquivo <code>.env</code> ou usar a página de ativação.
-    </p>
+    <% if @error %>
+      <div class="alert alert-error" style="margin-bottom:12px"><%= @error %></div>
+    <% end %>
+
+    <% if @license.license_token %>
+      <textarea class="input" readonly rows="2" style="font-family:'SF Mono','Fira Code',monospace;font-size:12px;cursor:text"
+        onclick="this.select()">LICENSE_TOKEN=<%= @license.license_token %></textarea>
+      <p style="color:var(--muted);font-size:12px;margin-top:8px">
+        Copie a linha acima e envie para o cliente.
+      </p>
+    <% else %>
+      <p style="color:var(--muted);font-size:13px;margin-bottom:12px">
+        Token ainda não gerado. Gere primeiro com <code>GerarLicenca.rb</code> e cole abaixo.
+      </p>
+      <form method="post" action="/licenses/<%= @license.id %>/token">
+        <input type="hidden" name="_method" value="patch">
+        <textarea class="input" name="license_token" rows="2" style="font-family:'SF Mono','Fira Code',monospace;font-size:12px"
+          placeholder="Cole apenas o token (sem LICENSE_TOKEN=)"></textarea>
+        <button class="btn btn-primary" type="submit" style="margin-top:10px">💾 Salvar Token</button>
+      </form>
+    <% end %>
   </div>
 
   <div class="card">
