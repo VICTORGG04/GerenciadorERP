@@ -14,11 +14,33 @@ get '/licenses/new' do
 end
 
 post '/licenses' do
-  expires = Time.now + (params[:days].to_i * 24 * 3600)
+  token = params[:license_token].to_s.strip
+
+  # Extrair plano e expiry do token, se informado
+  if token.empty?
+    plan = params[:plan]
+    expires = Time.now + (params[:days].to_i * 24 * 3600)
+  else
+    data = validate_token(token)
+    unless data
+      @error = 'Token inválido — assinatura não confere ou expirou.'
+      @license = OpenStruct.new(params)
+      return erb :'licenses/form'
+    end
+
+    plan = params[:plan].to_s.empty? ? data[:plan] : params[:plan]
+    unless plan == data[:plan]
+      @error = "Plano selecionado (#{plan}) não confere com o token (#{data[:plan]})."
+      @license = OpenStruct.new(params)
+      return erb :'licenses/form'
+    end
+
+    expires = data[:expires]
+  end
 
   begin
     lic = License.create(
-      plan:                params[:plan],
+      plan:                plan,
       company_name:        params[:company_name].strip,
       cnpj:                params[:cnpj]&.strip,
       address_street:      params[:address_street]&.strip,
@@ -35,7 +57,15 @@ post '/licenses' do
       expires_at:          expires.strftime('%Y-%m-%d %H:%M:%S')
     )
 
-    flash 'ok', "Cliente #{params[:company_name]} cadastrado como #{lic.license_ref}!"
+    unless token.empty?
+      License.update_token(lic.id, token)
+      existing = read_license_token
+      if existing != token && validate_token(token)
+        save_license_token!(token)
+      end
+    end
+
+    flash 'ok', "Licença #{lic.license_ref} cadastrada para #{lic.company_name}!"
     redirect "/licenses/#{lic.id}"
   rescue => e
     @error = "Erro ao cadastrar cliente: #{e.message}"

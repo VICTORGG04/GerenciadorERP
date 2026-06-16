@@ -1,6 +1,9 @@
 <div class="page-header">
-  <h1>Licença <%= @license.license_ref %></h1>
-  <a href="/licenses" class="btn btn-ghost">← Todas as Licenças</a>
+  <h1><%= h(@license.company_name) %></h1>
+  <div style="display:flex;gap:8px">
+    <code style="font-size:13px;color:var(--muted)"><%= @license.license_ref %></code>
+    <a href="/licenses" class="btn btn-ghost">← Licenças</a>
+  </div>
 </div>
 
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start">
@@ -16,13 +19,10 @@
 
     <% if @license.license_token %>
       <textarea class="input" readonly rows="2" style="font-family:'SF Mono','Fira Code',monospace;font-size:12px;cursor:text"
-        onclick="this.select()">LICENSE_TOKEN=<%= @license.license_token %></textarea>
-      <p style="color:var(--muted);font-size:12px;margin-top:8px">
-        Copie a linha acima e envie para o cliente.
-      </p>
+        onclick="this.select()"><%= @license.license_token %></textarea>
     <% else %>
       <p style="color:var(--muted);font-size:13px;margin-bottom:12px">
-        Token ainda não gerado. Gere primeiro com <code>GerarLicenca.rb</code> e cole abaixo.
+        Cole o token de licença abaixo.
       </p>
       <form method="post" action="/licenses/<%= @license.id %>/token">
         <input type="hidden" name="_method" value="patch">

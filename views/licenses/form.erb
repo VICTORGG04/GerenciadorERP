@@ -9,20 +9,29 @@
 
 <form method="post" action="/licenses" style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start">
   <div class="card">
-    <div class="card-title">📋 Dados da Licença</div>
+    <div class="card-title">🔑 Licença</div>
     <div style="display:flex;flex-direction:column;gap:14px">
       <div>
-        <label class="label">Plano *</label>
-        <select class="input" name="plan" required>
-          <option value="">Selecione...</option>
+        <label class="label">Token de Licença</label>
+        <textarea class="input" name="license_token" rows="2"
+          style="font-family:'SF Mono','Fira Code',monospace;font-size:13px"
+          placeholder="Cole o token enviado pelo suporte"><%= @license && @license[:license_token] %></textarea>
+        <p style="color:var(--muted);font-size:12px;margin-top:4px">
+          Se informado, plano e validade são extraídos automaticamente do token.
+        </p>
+      </div>
+      <div>
+        <label class="label">Plano (opcional se token informado)</label>
+        <select class="input" name="plan">
+          <option value="">Auto</option>
           <% License::PLANOS.each do |p| %>
             <option value="<%= p %>" <%= @license && @license[:plan] == p ? 'selected' : '' %>><%= p.capitalize %></option>
           <% end %>
         </select>
       </div>
       <div>
-        <label class="label">Dias de validade *</label>
-        <input class="input" type="number" name="days" value="365" min="1" required>
+        <label class="label">Dias de validade (opcional se token informado)</label>
+        <input class="input" type="number" name="days" value="365" min="1">
       </div>
     </div>
   </div>
@@ -102,6 +111,6 @@
 
   <div style="grid-column:1/-1;display:flex;gap:12px;justify-content:flex-end">
     <a href="/licenses" class="btn btn-ghost">Cancelar</a>
-    <button class="btn btn-primary" type="submit">✨ Gerar Licença</button>
+    <button class="btn btn-primary" type="submit">✨ Cadastrar</button>
   </div>
 </form>
