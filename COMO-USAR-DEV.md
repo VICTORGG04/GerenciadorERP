@@ -119,7 +119,42 @@ ruby db/setup.rb
 
 ---
 
-## 5. Credenciais padrão
+## 5. Licenciamento — Gerar tokens (apenas dev)
+
+Os tokens de licença são assinados digitalmente com **Ed25519**. A chave privada (`chave_privada.pem`) fica apenas na máquina do desenvolvedor. O servidor tem apenas a chave pública (hardcoded na `app.rb`).
+
+### Gerar um token
+
+```bash
+ruby GerarLicenca.rb <plano> <dias> <identificador>
+```
+
+Exemplos:
+
+```bash
+# Gold para o cliente LIC-007, válido por 365 dias
+ruby GerarLicenca.rb gold 365 LIC-007
+
+# Platinum para o cliente LIC-012, válido por 730 dias
+ruby GerarLicenca.rb platinum 730 LIC-012
+
+# Enterprise para o cliente LIC-042, válido por 1095 dias
+ruby GerarLicenca.rb enterprise 1095 LIC-042
+```
+
+A saída inclui a linha `LICENSE_TOKEN=...` que deve ser colada no painel admin em `/licenses`.
+
+### Arquivos importantes
+
+| Arquivo | Finalidade |
+|---------|------------|
+| `GerarLicenca.rb` | Script gerador de tokens (gitignored) |
+| `chave_privada.pem` | Chave privada Ed25519 (gitignored) |
+| `chave_publica.pem` | Chave pública Ed25519 (opcional, já está hardcoded) |
+
+> ⚠️ `GerarLicenca.rb` e `chave_privada.pem` estão no `.gitignore` e **não** são incluídos em builds `.deb`, Docker ou qualquer distribuição ao cliente.
+
+## 6. Credenciais padrão
 
 - **Usuário:** admin
 - **Senha:** admin123

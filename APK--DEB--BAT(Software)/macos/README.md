@@ -48,6 +48,10 @@ http://localhost:4568
 - E-mail: `admin@gerenciador.local`
 - Senha: `admin123`
 
+### Licenciamento
+
+O sistema funciona no plano **Free** (50 produtos, 1 usuário). Para ativar planos pagos, edite `~/GerenciadorERP/repo/.env` e preencha o `LICENSE_TOKEN` fornecido pelo desenvolvedor.
+
 ### Auto-início (opcional)
 
 ```bash

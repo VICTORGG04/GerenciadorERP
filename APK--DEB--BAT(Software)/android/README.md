@@ -35,6 +35,10 @@ Aplicativo Android que funciona como um wrapper WebView para o servidor ERP.
 - Conexão Wi-Fi (mesma rede do servidor)
 - Servidor ERP rodando na porta 4568
 
+## Licenciamento
+
+O plano do sistema é definido no servidor. Consulte o README do servidor para detalhes sobre planos (Free, Gold, Platinum, Enterprise).
+
 ## Solução de problemas
 
 **"Servidor não encontrado"**: Verifique se o servidor está rodando no computador e se o celular está na mesma rede Wi-Fi.

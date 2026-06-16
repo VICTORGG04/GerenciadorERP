@@ -49,6 +49,10 @@ cd GerenciadorClaude\APK--DEB--BAT\(Software\)\windows
 powershell -ExecutionPolicy Bypass -File gerenciador-erp.ps1
 ```
 
+## Licenciamento
+
+O sistema funciona no plano **Free** (50 produtos, 1 usuário). Para ativar planos pagos, edite o `.env` em `C:\Program Files\GerenciadorERP\repo\.env` e preencha o `LICENSE_TOKEN` fornecido pelo desenvolvedor.
+
 ## Solução de problemas
 
 **Erro de execução PowerShell**: Execute `Set-ExecutionPolicy RemoteSigned -Scope CurrentUser` como administrador.

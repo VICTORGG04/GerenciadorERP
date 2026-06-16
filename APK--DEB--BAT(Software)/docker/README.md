@@ -35,6 +35,14 @@ Abra o navegador em: [http://localhost:4568](http://localhost:4568)
 | `docker compose restart` | Reiniciar serviços |
 | `docker compose exec app bundle exec ruby db/setup.rb` | Configurar banco |
 
+## Licenciamento
+
+O sistema funciona no plano **Free** (50 produtos, 1 usuário). Para ativar planos pagos, edite o `.env` no diretório do projeto e preencha o `LICENSE_TOKEN` fornecido pelo desenvolvedor, depois recrie os containers:
+
+```bash
+docker compose down && docker compose up -d --build
+```
+
 ## Personalizar senhas
 
 Edite o `docker-compose.yml` (no diretório do projeto) e altere `CHANGE_ME` nos campos `POSTGRES_PASSWORD` e `SESSION_SECRET`. Depois recrie:

@@ -66,6 +66,10 @@ Abra [http://localhost:4568](http://localhost:4568)
 | `journalctl -u gerenciador-erp -f` | Logs em tempo real |
 | `systemctl start gerenciador-caddy` | Ativar HTTPS |
 
+## Licenciamento
+
+O sistema funciona no plano **Free** (50 produtos, 1 usuário) sem configuração adicional. Para ativar um plano superior, edite o `/etc/gerenciador-erp/.env` e preencha o `LICENSE_TOKEN` fornecido pelo desenvolvedor.
+
 ## Remover
 
 ```bash

@@ -39,3 +39,7 @@ Cada script:
 - **URL:** `http://localhost:4568`
 - **Login:** `admin@gerenciador.local`
 - **Senha:** `admin123`
+
+## Licenciamento
+
+O sistema funciona no plano **Free** (50 produtos, 1 usuário) sem configuração adicional. Para planos pagos (Gold, Platinum, Enterprise), configure o `LICENSE_TOKEN` no `.env` — veja a seção "Sistema de Licenciamento" no `README.md` raiz.

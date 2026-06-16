@@ -45,6 +45,10 @@ Adicione ao `<head>` do `views/layout.erb`:
 <link rel="apple-touch-icon" href="/icons/icon-192.svg">
 ```
 
+## Licenciamento
+
+O plano do sistema é definido no servidor. Consulte o README raiz para detalhes sobre planos (Free, Gold, Platinum, Enterprise).
+
 ## Como instalar no navegador
 
 | Navegador | Como instalar |

@@ -562,10 +562,38 @@ GerenciadorERP-Android/
 |---|---|---|
 | `SESSION_SECRET` | valor interno | Chave secreta da sessão — **troque em produção** |
 | `DATABASE_URL` | — | Alternativa para configurar conexão via URL |
+| `LICENSE_TOKEN` | vazio | Token de licença. Define o plano do sistema — veja abaixo |
 
 ```bash
 SESSION_SECRET="minha_chave_super_secreta" bundle exec ruby app.rb
 ```
+
+---
+
+## Sistema de Licenciamento
+
+O ERP possui **4 planos** que liberam funcionalidades progressivamente:
+
+| Plano | Limite Produtos | Limite Usuários | Features |
+|-------|:---------------:|:---------------:|----------|
+| **Free** (padrão) | 50 | 1 | dashboard, produtos, importação, PWA |
+| **Gold** | 500 | 3 | + categorias, movimentações, Android, baixa rápida, usuários |
+| **Platinum** | ilimitado | ilimitado | + pedidos, relatórios, backup, auditoria, estoque completo |
+| **Enterprise** | ilimitado | ilimitado | + whitelabel, código-fonte, treinamento |
+
+### Como funciona
+
+Cada instalação tem um token de licença armazenado no `.env` (`LICENSE_TOKEN`). Se vazio ou inválido, o sistema opera como **Free**. O token é uma string no formato `<plano>.<timestamp>.<cliente>.<assinatura>`, assinada digitalmente com Ed25519.
+
+### Gerenciar licenças de clientes
+
+Administradores podem gerenciar clientes e tokens via painel web em **Configurações → Licenças** (`/licenses`):
+
+- Criar registros de clientes (empresa, CNPJ, endereço, contato)
+- Colar tokens fornecidos pelo desenvolvedor
+- Visualizar plano vigente, status e data de expiração
+
+> A geração de tokens é feita exclusivamente pelo desenvolvedor, com a chave privada Ed25519. O servidor apenas **verifica** a assinatura.
 
 ---
 

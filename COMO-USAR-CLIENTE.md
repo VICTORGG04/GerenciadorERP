@@ -72,6 +72,17 @@ O sistema funciona enquanto o computador estiver ligado e o servidor rodando.
 
 ---
 
-## 6. Suporte
+## 6. Planos do sistema
+
+| Plano | Produtos | Usuários | Descrição |
+|-------|:--------:|:--------:|-----------|
+| **Free** | 50 | 1 | Padrão — sem custo |
+| **Gold** | 500 | 3 | Funcionalidades intermediárias |
+| **Platinum** | Ilimitado | Ilimitado | Funcionalidades completas |
+| **Enterprise** | Ilimitado | Ilimitado | Completo + personalização |
+
+Seu plano é definido por um token de licença configurado pelo responsável técnico. Para alterar o plano, contate o administrador.
+
+## 7. Suporte
 
 Em caso de dúvidas, entre em contato com o responsável técnico.
