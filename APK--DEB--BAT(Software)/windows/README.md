@@ -53,6 +53,23 @@ powershell -ExecutionPolicy Bypass -File gerenciador-erp.ps1
 
 O sistema funciona no plano **Free** (50 produtos, 1 usuário). Para ativar planos pagos, edite o `.env` em `C:\Program Files\GerenciadorERP\repo\.env` e preencha o `LICENSE_TOKEN` fornecido pelo desenvolvedor.
 
+## Gerenciar o servidor
+
+```powershell
+# Parar
+taskkill /F /IM ruby.exe
+
+# Iniciar
+start.bat
+```
+
+Para descobrir o processo na porta:
+
+```powershell
+netstat -ano | findstr :4568
+taskkill /PID <PID> /F
+```
+
 ## Solução de problemas
 
 **Erro de execução PowerShell**: Execute `Set-ExecutionPolicy RemoteSigned -Scope CurrentUser` como administrador.

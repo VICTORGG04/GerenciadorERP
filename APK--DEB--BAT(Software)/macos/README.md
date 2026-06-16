@@ -48,9 +48,23 @@ http://localhost:4568
 - E-mail: `admin@gerenciador.local`
 - Senha: `admin123`
 
-### Licenciamento
+### Gerenciar o servidor
 
-O sistema funciona no plano **Free** (50 produtos, 1 usuário). Para ativar planos pagos, edite `~/GerenciadorERP/repo/.env` e preencha o `LICENSE_TOKEN` fornecido pelo desenvolvedor.
+```bash
+# Parar
+pkill -f "ruby app.rb"
+
+# Iniciar
+bash start.command
+
+# Ver processo na porta
+lsof -i :4568
+
+# Matar por porta
+lsof -ti:4568 | xargs kill -9
+```
+
+> A porta pode ser diferente de 4568. Confirme no arquivo `.env` ou com `lsof -i`.
 
 ### Auto-início (opcional)
 

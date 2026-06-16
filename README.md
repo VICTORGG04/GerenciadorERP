@@ -197,13 +197,50 @@ psql -U SEU.USUARIO -d gerenciador_estoque -c \
 
 ## Como Executar
 
+### Desenvolvimento
+
 ```bash
 bundle exec ruby app.rb
 ```
 
 Acesse no navegador: [http://localhost:4568](http://localhost:4568)
 
-Para parar o servidor: `Ctrl + C`
+Para parar: `Ctrl + C`
+
+### Produção (Linux — systemd)
+
+```bash
+# Iniciar
+sudo systemctl start gerenciador-erp
+
+# Parar
+sudo systemctl stop gerenciador-erp
+
+# Status
+sudo systemctl status gerenciador-erp
+
+# Ver porta real em uso
+sudo systemctl status gerenciador-erp | grep Listening
+# ou: grep APP_PORT /etc/gerenciador-erp/.env
+
+# Logs
+journalctl -u gerenciador-erp -f
+```
+
+### Matar processo por porta (forçado)
+
+Se o servidor não responder ao stop normal:
+
+```bash
+# Linux
+lsof -ti:4568 | xargs kill -9      # substitua 4568 pela porta real
+
+# Windows (PowerShell como Admin)
+netstat -ano | findstr :4568
+taskkill /PID <PID> /F
+```
+
+> A porta real pode ser **4568** ou outra (o `postinst` escolhe automaticamente uma porta livre na instalação). Confirme com `systemctl status` ou olhe no `/etc/gerenciador-erp/.env`.
 
 ---
 

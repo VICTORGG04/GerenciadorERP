@@ -43,3 +43,30 @@ Cada script:
 ## Licenciamento
 
 O sistema funciona no plano **Free** (50 produtos, 1 usuário) sem configuração adicional. Para planos pagos (Gold, Platinum, Enterprise), configure o `LICENSE_TOKEN` no `.env` — veja a seção "Sistema de Licenciamento" no `README.md` raiz.
+
+## Gerenciar o servidor
+
+```bash
+# Parar
+sudo systemctl stop gerenciador-erp
+
+# Iniciar
+sudo systemctl start gerenciador-erp
+
+# Reiniciar
+sudo systemctl restart gerenciador-erp
+
+# Status + porta real
+systemctl status gerenciador-erp | grep Listening
+
+# Logs
+journalctl -u gerenciador-erp -f
+```
+
+Para matar o processo à força:
+
+```bash
+lsof -ti:4568 | xargs kill -9
+```
+
+> A porta real pode ser diferente de 4568 (o instalador escolhe automaticamente uma porta livre). Confirme com `systemctl status` ou veja o `/etc/gerenciador-erp/.env`.

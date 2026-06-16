@@ -62,13 +62,16 @@ Abra [http://localhost:4568](http://localhost:4568)
 | Comando | Descrição |
 |---------|-----------|
 | `systemctl status gerenciador-erp` | Status do servidor |
+| `systemctl status gerenciador-erp \| grep Listening` | Ver porta real em uso |
+| `grep APP_PORT /etc/gerenciador-erp/.env` | Ver porta configurada |
+| `systemctl start gerenciador-erp` | Iniciar |
+| `systemctl stop gerenciador-erp` | Parar |
 | `systemctl restart gerenciador-erp` | Reiniciar |
 | `journalctl -u gerenciador-erp -f` | Logs em tempo real |
+| `lsof -ti:4568 \| xargs kill -9` | Matar processo na porta (forçado) |
 | `systemctl start gerenciador-caddy` | Ativar HTTPS |
 
-## Licenciamento
-
-O sistema funciona no plano **Free** (50 produtos, 1 usuário) sem configuração adicional. Para ativar um plano superior, edite o `/etc/gerenciador-erp/.env` e preencha o `LICENSE_TOKEN` fornecido pelo desenvolvedor.
+> A porta pode ser 4568 ou outra (o instalador escolhe automaticamente uma porta livre). Confirme com `systemctl status`.
 
 ## Remover
 

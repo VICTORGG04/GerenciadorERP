@@ -43,6 +43,24 @@ O sistema funciona no plano **Free** (50 produtos, 1 usuário). Para ativar plan
 docker compose down && docker compose up -d --build
 ```
 
+## Gerenciar o servidor
+
+```bash
+# Parar
+docker compose down
+
+# Iniciar
+docker compose up -d --build
+
+# Logs
+docker compose logs -f
+
+# Ver porta mapeada
+docker compose port app 4568
+```
+
+> A porta mapeada pode ser diferente de 4568 se houver conflito. Veja em `docker compose ps`.
+
 ## Personalizar senhas
 
 Edite o `docker-compose.yml` (no diretório do projeto) e altere `CHANGE_ME` nos campos `POSTGRES_PASSWORD` e `SESSION_SECRET`. Depois recrie:

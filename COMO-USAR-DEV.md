@@ -36,6 +36,17 @@ pkill -f "ruby app.rb"                    # modo dev
 sudo systemctl stop gerenciador-erp        # modo produção
 ```
 
+### Matar por porta (forçado)
+
+```bash
+# Descobrir o PID na porta desejada
+lsof -ti:4568                              # dev
+lsof -ti:4569                              # produção (ou confirme a porta)
+
+# Matar
+kill -9 $(lsof -ti:4568)                   # substitua pela porta
+```
+
 ### Porta
 
 Definida no `.env`:
@@ -46,6 +57,12 @@ APP_PORT=4568
 ```
 
 Para alterar, edite o `.env` e reinicie.
+
+> **Atenção:** Em produção, o `postinst` do pacote `.deb` verifica se a porta 4568 está livre. Se estiver ocupada, ele escolhe automaticamente a próxima disponível (4569, 4570...). A porta real fica salva em `/etc/gerenciador-erp/.env`. Verifique com:
+> ```bash
+> sudo systemctl status gerenciador-erp | grep Listening
+> grep APP_PORT /etc/gerenciador-erp/.env
+> ```
 
 ---
 

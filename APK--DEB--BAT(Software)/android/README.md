@@ -39,6 +39,10 @@ Aplicativo Android que funciona como um wrapper WebView para o servidor ERP.
 
 O plano do sistema é definido no servidor. Consulte o README do servidor para detalhes sobre planos (Free, Gold, Platinum, Enterprise).
 
+## Porta do servidor
+
+Na configuração do app, a porta padrão é **4568**. Se o servidor estiver usando outra porta (ex: 4569), altere o campo "Porta" na tela de configuração do app para o número correto.
+
 ## Solução de problemas
 
 **"Servidor não encontrado"**: Verifique se o servidor está rodando no computador e se o celular está na mesma rede Wi-Fi.

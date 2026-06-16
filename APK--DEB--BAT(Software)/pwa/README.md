@@ -49,6 +49,14 @@ Adicione ao `<head>` do `views/layout.erb`:
 
 O plano do sistema é definido no servidor. Consulte o README raiz para detalhes sobre planos (Free, Gold, Platinum, Enterprise).
 
+## Porta do servidor
+
+A porta padrão é **4568**. Se o servidor estiver usando outra porta (ex: 4569), ajuste a URL no navegador:
+
+```
+http://192.168.0.6:4569
+```
+
 ## Como instalar no navegador
 
 | Navegador | Como instalar |

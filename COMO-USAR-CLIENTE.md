@@ -14,6 +14,8 @@ Abra o Chrome, Firefox ou Edge e digite:
 http://192.168.0.6:4568
 ```
 
+> **A porta pode variar.** Se não conseguir acessar, pergunte ao administrador qual é a porta correta (pode ser 4569, 8080 etc.).
+
 Qualquer computador na rede Wi-Fi da empresa pode acessar.
 
 ---
@@ -35,6 +37,8 @@ Na primeira vez, o app pede o IP do servidor:
 IP:   192.168.0.6
 Porta: 4568
 ```
+
+> A porta pode ser diferente (ex: 4569, 8080). Confirme com o administrador.
 
 Toque em **"Conectar"**.
 
@@ -58,6 +62,19 @@ O sistema funciona enquanto o computador estiver ligado e o servidor rodando.
 - Se o computador desligar, o sistema para
 - Ligue o computador e inicie o servidor novamente
 - O celular tentará reconectar automaticamente quando o servidor voltar
+
+### Como reiniciar o servidor (para o administrador)
+
+```bash
+sudo systemctl restart gerenciador-erp
+```
+
+Se o servidor estiver rodando manualmente (terminal), pressione `Ctrl + C` e inicie de novo:
+
+```bash
+cd ~/RubymineProjects/GerenciadorClaude
+bundle exec ruby app.rb
+```
 
 ---
 
