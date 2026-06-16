@@ -52,10 +52,14 @@ require_relative 'services/inventory/add_stock_service'
 require_relative 'services/inventory/remove_stock_service'
 require_relative 'services/inventory/adjust_stock_service'
 require_relative 'services/backups/json_backup_service'
+require_relative 'services/license/google_sheet_validator'
 
-# ─── Backup agendado ──────────────────────────────────────────────────────────
+# ─── Schedulers ───────────────────────────────────────────────────────────────
 require_relative 'lib/backup_scheduler'
 BackupScheduler.start!
+
+require_relative 'lib/license_scheduler'
+LicenseScheduler.start!
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 helpers do
@@ -134,6 +138,7 @@ helpers do
     sig = OpenSSL::HMAC.hexdigest('SHA256', LICENSE_SECRET, data)
     token = "#{data}.#{sig}"
     save_license_token!(token)
+    GoogleSheetValidator.register_free_trial!(token)
     token
   end
 
@@ -239,6 +244,38 @@ helpers do
     @_current_plan ||= validate_license! || 'free'
   end
 
+  # Validação online via Google Sheets
+  # Retorna true se OK, false se bloqueado, nil se sem planilha configurada
+  def validate_online!
+    return nil unless ENV['GOOGLE_SHEET_ID'] && ENV['GOOGLE_SHEET_CREDENTIALS']
+
+    token = read_license_token
+    return nil unless token
+
+    if GoogleSheetValidator.internet?
+      result = GoogleSheetValidator.validate(token)
+      if result[:valid] == false
+        if result[:error] =~ /expirada|revogado|outra máquina/
+          @_online_error = result[:error]
+          return false
+        end
+        return true
+      end
+      GoogleSheetValidator.write_cache(token_hash: Digest::SHA256.hexdigest(token), valid: true)
+      true
+    else
+      cache = GoogleSheetValidator.read_cache
+      return false unless cache
+      return false if cache[:token_hash] != Digest::SHA256.hexdigest(token)
+      elapsed = Time.now.to_i - (cache[:cached_at] || 0)
+      if elapsed > 86_400
+        @_online_error = 'Sem conexão há mais de 24h'
+        return false
+      end
+      true
+    end
+  end
+
   # ── Planos / Features ────────────────────────────────────────────────────
   FEATURES = {
     'free'       => %w[products dashboard import pwa],
@@ -290,6 +327,7 @@ before do
   pass if request.path_info.start_with?('/public')
   pass if request.path_info.start_with?('/login') && validate_license!
 
+  # Validação local (assinatura + expiry)
   plan = validate_license!
   if plan.nil?
     token = read_license_token
@@ -301,6 +339,16 @@ before do
     end
     generate_free_trial!
     @_license_data = validate_token(read_license_token)
+  end
+
+  # Validação online via Google Sheets
+  online = validate_online!
+  if online == false
+    @expired_plan = read_license_token.to_s.split('.')[0] rescue ''
+    @expired_at   = license_expires_at&.strftime('%d/%m/%Y') rescue ''
+    session.clear
+    flash 'error', @_online_error || 'Licença inválida — verifique o Google Sheets'
+    redirect '/license'
   end
 
   require_login!

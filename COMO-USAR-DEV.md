@@ -171,7 +171,49 @@ A saída inclui a linha `LICENSE_TOKEN=...` que deve ser colada no painel admin 
 
 > ⚠️ `GerarLicenca.rb` e `chave_privada.pem` estão no `.gitignore` e **não** são incluídos em builds `.deb`, Docker ou qualquer distribuição ao cliente.
 
-## 6. Credenciais padrão
+## 6. Google Sheets — Validação Online de Licenças
+
+A partir desta versão, o sistema valida licenças contra uma planilha do Google Sheets para evitar reuso e compartilhamento indevido.
+
+### Setup (uma vez)
+
+1. **Criar service account no Google Cloud Console**
+   - Acesse https://console.cloud.google.com/
+   - Crie um projeto (ex: `gerenciador-erp-licencas`)
+   - Ative a **Google Sheets API**
+   - Vá em **IAM e Admin** → **Service Accounts**
+   - Crie uma service account (ex: `licencas-sa`)
+   - Gere uma chave JSON → baixe o arquivo
+
+2. **Criar a planilha**
+   - Crie uma planilha no Google Sheets
+   - Nomeie a aba como `Licencas`
+   - Coluna A (Token), B (CNPJ), C (Empresa), D (Plano), E (Expira), F (Status), G (Maquina_ID), H (Hostname), I (IP), J (Ativado_Em), K (Obs)
+   - Compartilhe a planilha com o e-mail da service account (leitura+escrita)
+
+3. **Configurar no servidor**
+   - Copie o JSON da chave para `/etc/gerenciador-erp/chave-google-sheets.json`
+   - Adicione no `.env`:
+     ```
+     GOOGLE_SHEET_ID=<ID da planilha (da URL)>
+     GOOGLE_SHEET_CREDENTIALS=/etc/gerenciador-erp/chave-google-sheets.json
+     ```
+
+> ⚠️ Se `GOOGLE_SHEET_ID` não estiver configurado, o sistema funciona com validação local (sem checagem online).
+
+### Comportamento
+
+| Situação | Ação |
+|----------|------|
+| Token encontrado + `available` | Ativa, marca como `active` com dados da máquina |
+| Token encontrado + `active` (mesma máquina) | Libera normalmente |
+| Token encontrado + `active` (outra máquina) | **Bloqueia** — licença já em uso |
+| Token expirado | Marca como `expired`, bloqueia |
+| Token não encontrado | **Bloqueia** |
+| Sem internet | Usa cache local por até **24h**; depois bloqueia |
+| Revalidação | A cada **7 dias** via scheduler |
+
+## 7. Credenciais padrão
 
 - **Usuário:** admin
 - **Senha:** admin123

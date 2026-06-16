@@ -183,12 +183,41 @@ grep ED25519_PUBLIC_KEY app.rb
 
 ## 9. Arquivos
 
+## 6. Google Sheets — Registro Centralizado de Licenças
+
+Desde a versão com validação online, ao gerar um token você também deve **registrá-lo na planilha** para que o cliente consiga ativar.
+
+### Planilha: `Licencas`
+
+| A Token | B CNPJ | C Empresa | D Plano | E Expira | F Status | G~K (preenchido automático) |
+|---------|--------|-----------|---------|----------|----------|-----------------------------|
+| `gold.epoch.LIC-007...` | | Cliente XYZ | gold | 2026-12-31 | `available` | |
+
+### Passos ao gerar uma licença paga
+
+1. Gere o token com `GerarLicenca.rb` como antes
+2. Adicione uma **nova linha na planilha** com:
+   - **Token** — o token completo gerado
+   - **CNPJ/Empresa** — dados do cliente
+   - **Plano** — gold/platinum/enterprise  
+   - **Expira** — data de validade
+   - **Status** — `available`
+3. Envie o token para o cliente
+4. Quando o cliente ativar, o sistema marcará como `active` automaticamente
+
+> ⚠️ Tokens não registrados na planilha serão **rejeitados** pelo sistema se a validação online estiver ativa.
+
+### Arquivos
+
 | Arquivo | Finalidade | Git? | Build? |
 |---------|-----------|------|--------|
 | `GerarLicenca.rb` | Gerador de tokens Ed25519 | gitignored | ❌ Não incluído |
 | `chave_privada.pem` | Chave privada do desenvolvedor | gitignored | ❌ Não incluído |
 | `chave_publica.pem` | Chave pública (opcional, já hardcoded) | gitignored | ❌ Não incluído |
 | `app.rb` (ED25519_PUBLIC_KEY) | Chave pública para validação no servidor | ✔ Tracked | ✅ Incluído |
+| `chave-google-sheets.json` | Credencial da service account (uma por instalação) | gitignored | ❌ Distribuir manualmente |
+| `services/license/google_sheet_validator.rb` | Validação online via API | ✔ Tracked | ✅ Incluído |
+| `lib/license_scheduler.rb` | Revalidação semanal + carência 24h | ✔ Tracked | ✅ Incluído |
 | `Licença.odt` | Contrato master (4 planos) — editar por cliente | ✔ Tracked | ✅ Incluído |
 | `Licença-Free.odt` | Contrato Free (pronto para uso) | ✔ Tracked | ✅ Incluído |
 

@@ -18,6 +18,8 @@ gem "rackup",          "~> 2.3"
 # ── Novas dependências ────────────────────────────────────────────────────────
 gem "dotenv",           "~> 3.1"   # variáveis de ambiente via .env
 gem "rufus-scheduler",  "~> 3.9"   # backup automático agendado
+gem "google-apis-sheets_v4", "~> 0.40"  # validação de licenças via Google Sheets
+gem "googleauth",       "~> 1.11"  # autenticação service account Google
 
 group :development do
   gem "rubocop", require: false

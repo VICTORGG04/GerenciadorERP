@@ -25,6 +25,11 @@ tmp/
 GerarLicenca.rb
 chave_privada.pem
 chave_publica.pem
+chave-google-sheets.json
+
+# ── Storage local ──────────────────────────────────────────────────────────────
+/storage/machine_id
+/storage/license_cache.json
 
 # ── Empacotamento ──────────────────────────────────────────────────────────────
 *.deb
