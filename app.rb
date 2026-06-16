@@ -154,15 +154,17 @@ helpers do
 
   # Valida um token string e retorna hash com dados ou nil.
   # Aceita:
-  #   - Ed25519 (4 partes, assinatura base64url com ~88 chars)
-  #   - HMAC-SHA256 legado (3 ou 4 partes, assinatura hex 64 chars)
+  #   - Ed25519 (assinatura base64url, identificador pode conter dots)
+  #   - HMAC-SHA256 legado (assinatura hex 64 chars)
+  # Suporta identificadores com pontos (ex: CNPJ 12.345.678/0001-90)
   def validate_token(token)
     parts = token.to_s.split('.')
-    return nil unless parts.length == 3 || parts.length == 4
+    return nil unless parts.length >= 3
 
-    plan, expires, *rest = parts
-    identifier = rest.length == 2 ? rest[0] : nil
-    signature  = rest.last
+    plan = parts[0]
+    expires = parts[1]
+    signature = parts[-1]
+    identifier = parts.length > 3 ? parts[2..-2].join('.') : nil
     data = identifier ? "#{plan}.#{expires}.#{identifier}" : "#{plan}.#{expires}"
 
     if signature =~ /\A[a-f0-9]{64}\z/
