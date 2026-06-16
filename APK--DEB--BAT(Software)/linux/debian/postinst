@@ -90,15 +90,23 @@ EOF
     # ─── 4. Verificar conflito de porta ─────────────────────────────────────
     echo "  Verificando porta $APP_PORT..."
     if ss -tlnp "sport = :$APP_PORT" 2>/dev/null | grep -q .; then
-      echo "  ⚠ Porta $APP_PORT ocupada. Buscando alternativa..."
-      for port in {4568..4599} {8080..8099} {3000..3099}; do
-        if ! ss -tlnp "sport = :$port" 2>/dev/null | grep -q .; then
-          sed -i "s/^APP_PORT=.*/APP_PORT=$port/" "$ETC_DIR/.env"
-          APP_PORT=$port
-          echo "  ✓ Porta alterada para $port"
-          break
-        fi
-      done
+      PID=$(ss -tlnp "sport = :$APP_PORT" 2>/dev/null | grep -oP 'pid=\K\d+')
+      echo "  ⚠ Porta $APP_PORT ocupada (PID=$PID). Tentando liberar..."
+      fuser -k "${APP_PORT}/tcp" 2>/dev/null || kill -9 "$PID" 2>/dev/null || true
+      sleep 1
+      if ss -tlnp "sport = :$APP_PORT" 2>/dev/null | grep -q .; then
+        echo "  ⚠ Não foi possível liberar a porta $APP_PORT. Buscando alternativa..."
+        for port in {4568..4599} {8080..8099} {3000..3099}; do
+          if ! ss -tlnp "sport = :$port" 2>/dev/null | grep -q .; then
+            sed -i "s/^APP_PORT=.*/APP_PORT=$port/" "$ETC_DIR/.env"
+            APP_PORT=$port
+            echo "  ✓ Porta alterada para $port"
+            break
+          fi
+        done
+      else
+        echo "  ✓ Porta $APP_PORT liberada"
+      fi
     fi
 
     # ─── 5. Permissões ──────────────────────────────────────────────────────
