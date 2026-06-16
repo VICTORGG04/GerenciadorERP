@@ -40,9 +40,9 @@ DOMAIN="${APP_DOMAIN:-}"
 pkill -f "ruby app.rb" 2>/dev/null || true
 sleep 1
 
-# Iniciar app
+# Iniciar app (nohup evita que SIGHUP mate o processo ao fechar o terminal)
 cd "$REPO_DIR"
-bundle exec ruby app.rb &
+nohup bundle exec ruby app.rb > /dev/null 2>&1 &
 sleep 2
 
 # Detectar Caddy (se instalado)
