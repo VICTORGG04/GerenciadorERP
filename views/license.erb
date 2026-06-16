@@ -80,7 +80,7 @@
       <p>Ativação de Licença</p>
     </div>
 
-    <% if @expired %>
+    <% if @has_expired %>
       <div class="info expired">
         ⚠ Sua licença <strong><%= h(@expired_plan) %></strong> expirou em
         <strong><%= h(@expired_at) %></strong>.
@@ -88,8 +88,8 @@
       </div>
     <% elsif @error.nil? %>
       <div class="info">
-        Este sistema requer uma licença para funcionar.
-        Informe o token de licença enviado pelo suporte.
+        ✅ Você está no plano <strong>Free</strong>.
+        Para desbloquear mais recursos, cole o token recebido do suporte.
       </div>
     <% end %>
 
@@ -97,14 +97,14 @@
       <div class="error">⚠ <%= h(@error) %></div>
     <% end %>
 
-    <form method="post" action="/license">
-      <div class="field">
-        <label>Token de Licença</label>
-        <input type="text" name="license_token" required autofocus
-               placeholder="ex: platinum.1797073951.d42d228c...">
-      </div>
-      <button class="btn" type="submit">Ativar Licença</button>
-    </form>
+      <form method="post" action="/license">
+        <div class="field">
+          <label>Token de Licença (deixe vazio para continuar Free)</label>
+          <input type="text" name="license_token"
+                 placeholder="ex: gold.1797073951.d42d228c...">
+        </div>
+        <button class="btn" type="submit">Ativar / Continuar Free</button>
+      </form>
 
     <div class="footer-note">
       Entre em contato com o suporte para obter ou renovar sua licença.

@@ -4,6 +4,8 @@ require 'pg'
 require 'bcrypt'
 require 'openssl'
 require 'base64'
+require 'socket'
+require 'securerandom'
 
 # Chave pública Ed25519 — usada para verificar tokens assinados.
 # A chave privada fica apenas com o desenvolvedor (chave_privada.pem, gitignored).
@@ -122,9 +124,22 @@ helpers do
   end
 
   # ── Licença (Ed25519 + backward compat HMAC) ─────────────────────────────
+  FREE_TRIAL_DAYS = 30
+
+  def generate_free_trial!
+    expires = Time.now.to_i + FREE_TRIAL_DAYS * 86400
+    host = Socket.gethostname rescue 'unknown'
+    identifier = "#{host}-#{SecureRandom.hex(4)}"
+    data = "free.#{expires}.#{identifier}"
+    sig = OpenSSL::HMAC.hexdigest('SHA256', LICENSE_SECRET, data)
+    token = "#{data}.#{sig}"
+    save_license_token!(token)
+    token
+  end
+
   def env_path
     prod_env = '/etc/gerenciador-erp/.env'
-    return prod_env if File.exist?(prod_env)
+    return prod_env if File.exist?(prod_env) && File.writable?(prod_env)
     File.expand_path('.env', settings.root || __dir__)
   end
 
@@ -276,13 +291,16 @@ before do
   pass if request.path_info.start_with?('/login') && validate_license!
 
   plan = validate_license!
-  unless plan
-    if read_license_token
-      @expired_plan = read_license_token.to_s.split('.')[0] rescue ''
+  if plan.nil?
+    token = read_license_token
+    if token
+      @expired_plan = token.split('.')[0] rescue ''
       @expired_at   = license_expires_at&.strftime('%d/%m/%Y') rescue ''
       session.clear
+      redirect '/license'
     end
-    redirect '/license'
+    generate_free_trial!
+    @_license_data = validate_token(read_license_token)
   end
 
   require_login!

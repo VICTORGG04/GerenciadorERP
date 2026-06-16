@@ -2,15 +2,21 @@
 
 # ── Licença (ativação) ────────────────────────────────────────────
 get '/license' do
-  redirect '/login' if validate_license!
+  token = read_license_token
+  if token && validate_token(token)
+    redirect '/'
+  end
+  @has_expired = token && !validate_token(token)
   erb :'license', layout: false
 end
 
 post '/license' do
   token = params[:license_token].to_s.strip
+
+  # Vazio = continuar no Free
   if token.empty?
-    @error = 'Informe o token de licença.'
-    return erb(:'license', layout: false)
+    flash 'ok', 'Continuando com o plano Free.'
+    redirect '/login'
   end
 
   data = validate_token(token)
