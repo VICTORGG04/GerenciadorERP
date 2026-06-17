@@ -1,0 +1,53 @@
+<!-- views/users/form.erb -->
+<div class="page-header">
+  <h1>Novo Usuário</h1>
+  <a href="/users" class="btn btn-ghost">← Voltar</a>
+</div>
+
+<% if @error %>
+  <div style="background:#fee2e2;color:#991b1b;padding:12px 16px;border-radius:8px;margin-bottom:16px">
+    ⚠ <%= h(@error) %>
+  </div>
+<% end %>
+
+<div class="card" style="max-width:500px">
+  <form method="post" action="/users" style="display:flex;flex-direction:column;gap:14px">
+
+    <div>
+      <label class="label">Nome *</label>
+      <input class="input" name="name" required placeholder="Nome completo">
+    </div>
+
+    <div>
+      <label class="label">E-mail *</label>
+      <input class="input" type="email" name="email" required placeholder="usuario@email.com">
+    </div>
+
+    <div>
+      <label class="label">Nível de acesso *</label>
+      <select class="input" name="role" required>
+        <option value="operator">Operador (leitura)</option>
+        <% if feature?('users') %>
+          <option value="assistant">Assistente (edição)</option>
+          <option value="admin">Administrador (total)</option>
+        <% end %>
+      </select>
+    </div>
+
+    <div>
+      <label class="label">Senha *</label>
+      <input class="input" type="password" name="password" required minlength="6">
+    </div>
+
+    <div>
+      <label class="label">Confirmar senha *</label>
+      <input class="input" type="password" name="password_confirm" required minlength="6">
+    </div>
+
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
+      <a href="/users" class="btn btn-ghost">Cancelar</a>
+      <button class="btn btn-primary" type="submit">Criar Usuário</button>
+    </div>
+
+  </form>
+</div>

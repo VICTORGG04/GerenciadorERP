@@ -28,18 +28,18 @@ DB = PG.connect(
 )
 
 # ─── Models ───────────────────────────────────────────────────────────────────
-require_relative 'models/category'
-require_relative 'models/product'
-require_relative 'models/movement'
-require_relative 'models/order'
-require_relative 'models/user'
-require_relative 'models/audit_log'
-require_relative 'models/import'
-require_relative 'models/license'
+require_relative 'app/models/category'
+require_relative 'app/models/product'
+require_relative 'app/models/movement'
+require_relative 'app/models/order'
+require_relative 'app/models/user'
+require_relative 'app/models/audit_log'
+require_relative 'app/models/import'
+require_relative 'app/models/license'
 
 # ─── Configuração ─────────────────────────────────────────────────────────────
 configure do
-  set :views,         File.expand_path('views', __dir__)
+  set :views,         File.expand_path('app/views', __dir__)
   set :public_folder, File.expand_path('public', __dir__)
   enable :sessions
   set :session_secret, ENV.fetch('SESSION_SECRET', SecureRandom.hex(64))
@@ -48,17 +48,17 @@ configure do
 end
 
 # ─── Services ──────────────────────────────────────────────────────────────────
-require_relative 'services/inventory/add_stock_service'
-require_relative 'services/inventory/remove_stock_service'
-require_relative 'services/inventory/adjust_stock_service'
-require_relative 'services/backups/json_backup_service'
-require_relative 'services/license/google_sheet_validator'
+require_relative 'app/services/inventory/add_stock_service'
+require_relative 'app/services/inventory/remove_stock_service'
+require_relative 'app/services/inventory/adjust_stock_service'
+require_relative 'app/services/backups/json_backup_service'
+require_relative 'app/services/license/google_sheet_validator'
 
 # ─── Schedulers ───────────────────────────────────────────────────────────────
-require_relative 'lib/backup_scheduler'
+require_relative 'app/lib/backup_scheduler'
 BackupScheduler.start!
 
-require_relative 'lib/license_scheduler'
+require_relative 'app/lib/license_scheduler'
 LicenseScheduler.start!
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -284,7 +284,7 @@ helpers do
     'enterprise' => %w[products dashboard import pwa categories movements android quick_out orders reports backup audit users full_stock whitelabel source_code training]
   }.freeze
 
-  MAX_PRODUCTS = { 'free' => 50, 'gold' => 500, 'platinum' => 999_999, 'enterprise' => 999_999 }.freeze
+  MAX_PRODUCTS = { 'free' => 20, 'gold' => 500, 'platinum' => 999_999, 'enterprise' => 999_999 }.freeze
   MAX_USERS    = { 'free' => 1,  'gold' => 3,   'platinum' => 999_999, 'enterprise' => 999_999 }.freeze
 
   def feature?(name)
@@ -325,26 +325,31 @@ end
 before do
   pass if request.path_info == '/license'
   pass if request.path_info.start_with?('/public')
-  pass if request.path_info.start_with?('/login') && validate_license!
+  pass if request.path_info.start_with?('/login')
 
-  # Validação local (assinatura + expiry)
-  plan = validate_license!
-  if plan.nil?
-    token = read_license_token
-    if token
-      @expired_plan = token.split('.')[0] rescue ''
-      @expired_at   = license_expires_at&.strftime('%d/%m/%Y') rescue ''
-      session.clear
-      redirect '/license'
-    end
+  token = read_license_token
+
+  # 1ª vez (sem token): gerar Free trial silenciosamente → permitir login
+  if token.nil?
     generate_free_trial!
     @_license_data = validate_token(read_license_token)
+    require_login!
+    return
   end
 
-  # Validação online via Google Sheets
+  # Token existe: validar assinatura + expiry local
+  plan = validate_license!
+  if plan.nil?
+    @expired_plan = token.split('.')[0] rescue ''
+    @expired_at   = license_expires_at&.strftime('%d/%m/%Y') rescue ''
+    session.clear
+    redirect '/license'
+  end
+
+  # Token válido localmente: verificar Google Sheets (se configurado)
   online = validate_online!
   if online == false
-    @expired_plan = read_license_token.to_s.split('.')[0] rescue ''
+    @expired_plan = token.split('.')[0] rescue ''
     @expired_at   = license_expires_at&.strftime('%d/%m/%Y') rescue ''
     session.clear
     flash 'error', @_online_error || 'Licença inválida — verifique o Google Sheets'
@@ -388,14 +393,14 @@ before '/users*' do
 end
 
 # ─── Rotas ────────────────────────────────────────────────────────────────────
-require_relative 'controllers/auth_controller'
-require_relative 'controllers/dashboard_controller'
-require_relative 'controllers/categories_controller'
-require_relative 'controllers/products_controller'
-require_relative 'controllers/movements_controller'
-require_relative 'controllers/orders_controller'
-require_relative 'controllers/reports_controller'
-require_relative 'controllers/backups_controller'
-require_relative 'controllers/audit_controller'
-require_relative 'controllers/import_controller'
-require_relative 'controllers/licenses_controller'
+require_relative 'app/controllers/auth_controller'
+require_relative 'app/controllers/dashboard_controller'
+require_relative 'app/controllers/categories_controller'
+require_relative 'app/controllers/products_controller'
+require_relative 'app/controllers/movements_controller'
+require_relative 'app/controllers/orders_controller'
+require_relative 'app/controllers/reports_controller'
+require_relative 'app/controllers/backups_controller'
+require_relative 'app/controllers/audit_controller'
+require_relative 'app/controllers/import_controller'
+require_relative 'app/controllers/licenses_controller'

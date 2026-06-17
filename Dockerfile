@@ -11,7 +11,7 @@ RUN gem install bundler && bundle install --jobs 4 --retry 3
 
 COPY . .
 
-RUN mkdir -p logs storage backups
+RUN mkdir -p log storage/backups
 
 EXPOSE 4568
 

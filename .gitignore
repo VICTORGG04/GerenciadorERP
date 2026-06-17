@@ -3,14 +3,13 @@
 *.env.local
 
 # ── Backups gerados ───────────────────────────────────────────────────────────
-/backups/*.sql
-/backups/*.gz
+/storage/backups/*.sql
+/storage/backups/*.gz
 
 # ── Ruby / Bundler ────────────────────────────────────────────────────────────
 .bundle/
 vendor/bundle/
 *.gem
-Gemfile.lock
 
 # ── Logs ─────────────────────────────────────────────────────────────────────
 *.log
@@ -21,10 +20,10 @@ Gemfile.lock
 Thumbs.db
 tmp/
 
-# ── Licença (apenas uso local) ─────────────────────────────────────────────────
-GerarLicenca.rb
-chave_privada.pem
-chave_publica.pem
+# ── Licença (apenas uso local) ────────────────────────────────────────────────
+certs/GerarLicenca.rb
+certs/chave_privada.pem
+certs/chave_publica.pem
 chave-google-sheets.json
 
 # ── Storage local ──────────────────────────────────────────────────────────────

@@ -32,9 +32,8 @@ services:
     ports:
       - "4568:4568"
     volumes:
-      - app-logs:/app/logs
+      - app-logs:/app/log
       - app-storage:/app/storage
-      - app-backups:/app/backups
     restart: unless-stopped
     networks:
       - erp-network
@@ -43,7 +42,6 @@ volumes:
   pgdata:
   app-logs:
   app-storage:
-  app-backups:
 
 networks:
   erp-network:

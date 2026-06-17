@@ -613,7 +613,7 @@ O ERP possui **4 planos** que liberam funcionalidades progressivamente:
 
 | Plano | Limite Produtos | Limite Usuários | Features |
 |-------|:---------------:|:---------------:|----------|
-| **Free** (padrão) | 50 | 1 | dashboard, produtos, importação, PWA |
+| **Free** (padrão) | 20 | 1 | dashboard, produtos, importação, PWA |
 | **Gold** | 500 | 3 | + categorias, movimentações, Android, baixa rápida, usuários |
 | **Platinum** | ilimitado | ilimitado | + pedidos, relatórios, backup, auditoria, estoque completo |
 | **Enterprise** | ilimitado | ilimitado | + whitelabel, código-fonte, treinamento |

@@ -1,0 +1,96 @@
+<!-- views/users/index.erb -->
+<div class="page-header">
+  <h1>Usuários</h1>
+  <a href="/users/new" class="btn btn-primary">+ Novo Usuário</a>
+</div>
+
+<% if @error %>
+  <div style="background:#fee2e2;color:#991b1b;padding:12px 16px;border-radius:8px;margin-bottom:16px">
+    ⚠ <%= h(@error) %>
+  </div>
+<% end %>
+
+<div class="card">
+  <% @users.each do |u| %>
+    <div style="display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid #f0f0f0">
+
+      <div style="flex:1">
+        <div style="font-weight:600"><%= h(u.name) %></div>
+        <div style="font-size:13px;color:#888"><%= h(u.email) %></div>
+      </div>
+
+      <!-- Badge de role corrigido para os 3 papéis -->
+      <span style="background:<%= case u.role
+                                  when 'admin'     then '#ede9fe'
+                                  when 'assistant' then '#fef9c3'
+                                  when 'operator'  then '#f0fdf4'
+                                  end %>;
+                   color:<%= case u.role
+                             when 'admin'     then '#6d28d9'
+                             when 'assistant' then '#92400e'
+                             when 'operator'  then '#166534'
+                             end %>;
+                   padding:3px 10px;border-radius:12px;font-size:12px;font-weight:700">
+        <%= u.role_label %>
+      </span>
+
+      <span style="background:<%= u.active? ? '#d1fae5' : '#fee2e2' %>;
+                   color:<%= u.active? ? '#065f46' : '#991b1b' %>;
+                   padding:3px 10px;border-radius:12px;font-size:12px">
+        <%= u.active? ? 'Ativo' : 'Inativo' %>
+      </span>
+
+      <!-- Botão Editar -->
+      <% unless u.id == current_user.id %>
+        <a href="/users/<%= u.id %>/edit" class="btn btn-sm btn-ghost">✏️ Editar</a>
+      <% end %>
+
+      <!-- Botão Excluir permanentemente -->
+      <% unless u.id == current_user.id %>
+        <form method="post" action="/users/<%= u.id %>"
+              onsubmit="return confirm('⚠️ Excluir permanentemente o usuário <%= h(u.name) %>? Esta ação não pode ser desfeita!')">
+          <input type="hidden" name="_method" value="delete">
+          <button class="btn btn-sm" style="color:#991b1b;background:#fee2e2;border:none" type="submit">
+            🗑️ Excluir
+          </button>
+        </form>
+      <% end %>
+
+      <% unless u.id == current_user.id %>
+        <form method="post" action="/users/<%= u.id %>/toggle"
+              onsubmit="return confirm('<%= u.active? ? 'Desativar' : 'Ativar' %> usuário?')">
+          <button class="btn btn-sm btn-ghost" type="submit">
+            <%= u.active? ? '🔒 Desativar' : '🔓 Ativar' %>
+          </button>
+        </form>
+      <% end %>
+
+      <!-- Trocar senha -->
+      <button class="btn btn-sm btn-ghost"
+              onclick="document.getElementById('pwd-<%= u.id %>').classList.toggle('hidden')">
+        🔑
+      </button>
+    </div>
+
+    <!-- Form trocar senha (oculto por padrão) -->
+    <div id="pwd-<%= u.id %>" class="hidden"
+         style="background:#f8fafc;padding:12px;border-radius:8px;margin:4px 0 12px">
+      <form method="post" action="/users/<%= u.id %>/change_password"
+            style="display:flex;gap:10px;align-items:flex-end">
+        <div style="flex:1">
+          <label class="label" style="font-size:12px">Nova senha</label>
+          <input class="input" type="password" name="password" required minlength="6">
+        </div>
+        <div style="flex:1">
+          <label class="label" style="font-size:12px">Confirmar</label>
+          <input class="input" type="password" name="password_confirm" required minlength="6">
+        </div>
+        <button class="btn btn-primary" style="white-space:nowrap">Salvar</button>
+      </form>
+    </div>
+  <% end %>
+</div>
+
+<style>
+  .hidden { display: none !important; }
+</style>

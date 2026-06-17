@@ -692,6 +692,13 @@ textarea.input { resize: vertical; min-height: 80px; }
     box-shadow: 0 0 16px #10b98110;
 }
 
+.alert-warn {
+    background: #f59e0b10;
+    color: #fbbf24;
+    border: 1px solid #f59e0b30;
+    box-shadow: 0 0 16px #f59e0b10;
+}
+
 /* ════════════════════════════════════════════════════
    EMPTY STATES
    ════════════════════════════════════════════════════ */

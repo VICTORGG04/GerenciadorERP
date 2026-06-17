@@ -1,9 +1,0 @@
-[Desktop Entry]
-Name=Gerenciador ERP
-Comment=Sistema de Gerenciamento de Estoque
-Exec=xdg-open http://localhost:4568
-Icon=gerenciador-erp
-Terminal=false
-Type=Application
-Categories=Office;Finance;
-StartupNotify=true

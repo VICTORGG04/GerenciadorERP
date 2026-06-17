@@ -1,8 +1,0 @@
-:80 {
-    redir https://{host}{uri} permanent
-}
-
-:443 {
-    tls internal
-    reverse_proxy 127.0.0.1:{$APP_PORT:4567}
-}

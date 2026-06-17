@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ERP Gerenciador de Estoque</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#16213e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icons/icon-192.svg">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<aside class="sidebar">
+
+  <div class="sidebar-logo">
+    <div class="logo-icon">⬡</div>
+    <div>
+      <div class="logo-title">ERP Estoque</div>
+      <div class="logo-sub">v2.0</div>
+    </div>
+  </div>
+
+  <nav class="nav-section">
+    <div class="nav-section-label">Principal</div>
+    <a href="/" class="nav-item <%= request.path_info == '/' ? 'nav-active' : '' %>">
+      🏠 <span>Dashboard</span>
+    </a>
+    <a href="/products" class="nav-item <%= nav_active('/products') %>">
+      📦 <span>Produtos</span>
+    </a>
+    <% if feature?('categories') %>
+      <a href="/categories" class="nav-item <%= nav_active('/categories') %>">
+        🏷️ <span>Categorias</span>
+      </a>
+    <% end %>
+
+    <% if feature?('movements') || feature?('orders') || feature?('quick_out') %>
+      <div class="nav-section-label">Movimentações</div>
+      <% if feature?('movements') %>
+        <a href="/movements" class="nav-item <%= nav_active('/movements') %>">
+          ⇅ <span>Movimentações</span>
+        </a>
+      <% end %>
+      <% if feature?('orders') %>
+        <a href="/orders" class="nav-item <%= nav_active('/orders') %>">
+          🛒 <span>Pedidos</span>
+        </a>
+      <% end %>
+      <% if feature?('quick_out') %>
+        <a href="/quick_out" class="nav-item <%= nav_active('/quick_out') %>">
+          ⚡ <span>Baixa Rápida</span>
+        </a>
+      <% end %>
+    <% end %>
+
+    <% if feature?('reports') || feature?('backups') || feature?('users') %>
+      <div class="nav-section-label">Sistema</div>
+      <% if feature?('reports') %>
+        <a href="/reports" class="nav-item <%= nav_active('/reports') %>">
+          📊 <span>Relatórios</span>
+        </a>
+      <% end %>
+      <% if feature?('backups') %>
+        <a href="/backups" class="nav-item <%= nav_active('/backups') %>">
+          💾 <span>Backups</span>
+        </a>
+      <% end %>
+      <% if feature?('users') && defined?(current_user) && current_user&.admin? %>
+        <a href="/users" class="nav-item <%= nav_active('/users') %>">
+          👤 <span>Usuários</span>
+        </a>
+      <% end %>
+    <% end %>
+    <% if defined?(current_user) && current_user&.admin? %>
+      <div class="nav-section-label">Admin</div>
+      <a href="/licenses" class="nav-item <%= nav_active('/licenses') %>">
+        🔑 <span>Licenças</span>
+      </a>
+    <% end %>
+  </nav>
+
+  <!-- Usuário logado -->
+  <div class="sidebar-footer">
+    <% if defined?(current_user) && current_user %>
+      <div class="sidebar-user">
+        <div class="user-avatar">
+          <%= current_user.name.split.map { |w| w[0] }.first(2).join.upcase %>
+        </div>
+        <div class="user-info">
+          <div class="user-name"><%= h(current_user.name) %></div>
+          <div class="user-role"><%= current_user.admin? ? 'Administrador' : 'Operador' %></div>
+        </div>
+        <a href="/logout" title="Sair" style="color:var(--muted);font-size:16px;text-decoration:none;padding:4px"
+           onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--muted)'">
+          ⎋
+        </a>
+      </div>
+    <% end %>
+    <div class="plan-badge <%= current_plan %>">
+      <%= plan_label %><% if (holder = license_holder) %><br><span class="plan-holder"><%= h(holder) %></span><% end %>
+      <% if (lic = license_info) && lic.cnpj %><br><span class="plan-cnpj"><%= h(lic.cnpj) %></span><% end %>
+    </div>
+  </div>
+
+</aside>
+
+<main class="main-content">
+
+  <% if defined?(@error) && @error %>
+    <div class="alert alert-error">⚠ <%= h(@error) %></div>
+  <% end %>
+  <% flash = flash_msg %>
+  <% if flash %>
+    <% flash_class = case flash[:type]
+         when 'error' then 'error'
+         when 'warn'  then 'warn'
+         else 'ok'
+       end %>
+    <% flash_icon = case flash[:type]
+         when 'error' then '⚠'
+         when 'warn'  then '⚠'
+         else '✓'
+       end %>
+    <div class="alert alert-<%= flash_class %>">
+      <%= flash_icon %> <%= h(flash[:msg]) %>
+    </div>
+  <% end %>
+
+  <%= yield %>
+
+</main>
+</body>
+</html>
