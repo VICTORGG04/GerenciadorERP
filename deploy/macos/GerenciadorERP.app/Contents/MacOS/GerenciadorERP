@@ -1,0 +1,103 @@
+#!/bin/bash
+# Gerenciador ERP - macOS App Bundle
+# Auto-detecta se está dentro do repositório; se não, baixa do GitHub
+# sem necessidade de conta GitHub.
+
+set -e
+
+REPO_URL="https://github.com/VICTORGG04/GerenciadorClaude.git"
+ZIP_URL="https://github.com/VICTORGG04/GerenciadorClaude/archive/refs/heads/master.zip"
+INSTALL_DIR="$HOME/GerenciadorERP"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# ── Busca app.rb subindo diretórios ─────────────────────────────────────────
+find_repo() {
+    local dir="$1"
+    while [ "$dir" != "/" ]; do
+        if [ -f "$dir/app.rb" ]; then
+            echo "$dir"
+            return 0
+        fi
+        dir="$(dirname "$dir")"
+    done
+    return 1
+}
+
+REPO_DIR=$(find_repo "$SCRIPT_DIR")
+
+# ── Função para baixar e extrair ZIP ───────────────────────────────────────
+download_repo() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+
+    osascript -e 'display dialog "Baixando Gerenciador ERP do GitHub..." buttons {"OK"} default button "OK" with title "Gerenciador ERP" with icon note'
+
+    if command -v curl &>/dev/null; then
+        curl -fsSL -o "$tmpdir/repo.zip" "$ZIP_URL"
+    elif command -v wget &>/dev/null; then
+        wget -q -O "$tmpdir/repo.zip" "$ZIP_URL"
+    else
+        osascript -e 'display dialog "Falha ao baixar: nem curl nem wget disponíveis." buttons {"OK"} default button "OK" with title "Gerenciador ERP" with icon stop'
+        exit 1
+    fi
+
+    if [ ! -f "$tmpdir/repo.zip" ] || [ ! -s "$tmpdir/repo.zip" ]; then
+        osascript -e 'display dialog "Falha ao baixar o repositório." buttons {"OK"} default button "OK" with title "Gerenciador ERP" with icon stop'
+        exit 1
+    fi
+
+    unzip -q "$tmpdir/repo.zip" -d "$tmpdir"
+    rm -f "$tmpdir/repo.zip"
+
+    local extracted
+    extracted=("$tmpdir"/GerenciadorClaude-*)
+    if [ ${#extracted[@]} -eq 0 ] || [ ! -d "${extracted[0]}" ]; then
+        osascript -e 'display dialog "Falha ao extrair o repositório." buttons {"OK"} default button "OK" with title "Gerenciador ERP" with icon stop'
+        exit 1
+    fi
+
+    mkdir -p "$INSTALL_DIR"
+    cp -R "${extracted[0]}" "$INSTALL_DIR/repo"
+    echo "$INSTALL_DIR/repo"
+}
+
+# ── Obter repositório ───────────────────────────────────────────────────────
+if [ -z "$REPO_DIR" ]; then
+    osascript -e 'display dialog "Baixando Gerenciador ERP do GitHub..." buttons {"OK"} default button "OK" with title "Gerenciador ERP" with icon note'
+    mkdir -p "$INSTALL_DIR"
+
+    if command -v git &>/dev/null; then
+        git clone --depth 1 "$REPO_URL" "$INSTALL_DIR/repo" 2>/dev/null && REPO_DIR="$INSTALL_DIR/repo"
+    fi
+
+    if [ -z "$REPO_DIR" ]; then
+        REPO_DIR=$(download_repo)
+    fi
+fi
+
+cd "$REPO_DIR"
+
+if [ -f .env ]; then
+    source .env
+fi
+APP_PORT="${APP_PORT:-4568}"
+
+# ── Verificar Ruby ───────────────────────────────────────────────────────────
+if ! command -v ruby &>/dev/null; then
+    osascript -e 'display dialog "Ruby não encontrado.\nInstale com: brew install ruby" buttons {"OK"} default button "OK" with title "Gerenciador ERP" with icon stop'
+    exit 1
+fi
+
+if ! command -v bundle &>/dev/null; then
+    gem install bundler
+fi
+bundle install
+
+if [ ! -f .env ]; then
+    cp .env.example .env
+    osascript -e 'display dialog "Arquivo .env criado. Configure o PostgreSQL e clique OK para iniciar." buttons {"OK"} default button "OK" with title "Gerenciador ERP" with icon note'
+fi
+
+osascript -e "display dialog \"Servidor iniciando em http://localhost:$APP_PORT\" buttons {\"OK\"} default button \"OK\" with title \"Gerenciador ERP\" with icon note"
+open "http://localhost:$APP_PORT"
+bundle exec ruby app.rb

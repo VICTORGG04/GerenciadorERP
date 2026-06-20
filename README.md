@@ -1,6 +1,6 @@
-# ⬡ ERP Gerenciador de Estoque
+# Gerenciador ERP v2.0.3
 
-Sistema web de gerenciamento de estoque desenvolvido em **Ruby + Sinatra + PostgreSQL**. Permite controle completo de produtos, categorias, movimentações, pedidos, relatórios e backups, com autenticação por perfis de usuário (Administrador e Operador).
+Sistema web de gerenciamento de estoque desenvolvido em **Ruby + Sinatra + PostgreSQL**. Controle completo de produtos, categorias, movimentações, pedidos, relatórios e backups, com autenticação por perfis de usuário (Administrador e Operador), pagamentos via Stripe e licenciamento automatizado.
 
 ---
 
@@ -13,17 +13,13 @@ Sistema web de gerenciamento de estoque desenvolvido em **Ruby + Sinatra + Postg
 - [Instalação](#instalação)
 - [Banco de Dados](#banco-de-dados)
 - [Como Executar](#como-executar)
-- [Executável — Linux](#executável--linux)
-- [Executável — Windows](#executável--windows)
-- [Mobile — Como funciona](#mobile--como-funciona)
-- [Mobile — Configurar o Servidor](#mobile--configurar-o-servidor)
-- [Mobile — Android (APK)](#mobile--android-apk)
-- [Mobile — Android (compilar o APK)](#mobile--android-compilar-o-apk)
-- [Mobile — iPhone (PWA)](#mobile--iphone-pwa)
-- [Estrutura do App Android](#estrutura-do-app-android)
+- [Implantação](#implantação)
+- [Mobile](#mobile)
 - [Rotas da Aplicação](#rotas-da-aplicação)
 - [Perfis de Usuário](#perfis-de-usuário)
 - [Variáveis de Ambiente](#variáveis-de-ambiente)
+- [Sistema de Licenciamento](#sistema-de-licenciamento)
+- [Pagamentos (Stripe)](#pagamentos-stripe)
 - [Solução de Problemas](#solução-de-problemas)
 
 ---
@@ -32,16 +28,21 @@ Sistema web de gerenciamento de estoque desenvolvido em **Ruby + Sinatra + Postg
 
 | Módulo | Descrição |
 |---|---|
-| 🏠 Dashboard | Visão geral com totais de produtos, categorias e estoque baixo |
-| 📦 Produtos | CRUD completo com SKU, preço, custo, quantidade mínima e categoria |
-| 🏷️ Categorias | Criação e exclusão de categorias (com proteção de FK) |
-| ⇅ Movimentações | Registro de entradas e saídas de estoque com histórico |
-| 🛒 Pedidos | Criação e acompanhamento de pedidos por status |
-| ⚡ Baixa Rápida | Saída rápida de estoque sem necessidade de criar pedido |
-| 📊 Relatórios | Exportação de dados em diferentes formatos |
-| 💾 Backups | Geração e download de backups do banco |
-| 👤 Usuários | Gerenciamento de usuários (somente Administrador) |
-| 🔐 Autenticação | Login com sessão segura e controle de permissões |
+| Dashboard | Visão geral com totais de produtos, categorias e estoque baixo |
+| Produtos | CRUD completo com SKU, preço, custo, quantidade mínima e categoria |
+| Categorias | Criação e exclusão de categorias (com proteção de FK) |
+| Movimentações | Registro de entradas e saídas de estoque com histórico |
+| Pedidos | Criação e acompanhamento de pedidos por status |
+| Baixa Rápida | Saída rápida de estoque sem criar pedido |
+| Relatórios | Exportação em múltiplos formatos |
+| Backups | Geração e download de backups do banco |
+| Auditoria | Log de todas as operações críticas |
+| Importação | Importação de dados via planilha |
+| Usuários | Gerenciamento de usuários (Admin) |
+| Licenças | Gerenciamento de clientes e tokens de licença |
+| Pagamentos | Checkout integrado com Stripe (cartão de crédito) |
+| Recibos | Geração automática de comprovante `.txt` após pagamento |
+| Email | Envio automático da licença por email ao pagar |
 
 ---
 
@@ -52,8 +53,13 @@ Sistema web de gerenciamento de estoque desenvolvido em **Ruby + Sinatra + Postg
 - **Puma** 6.x — servidor de aplicação
 - **PostgreSQL** — banco de dados relacional
 - **BCrypt** — hash seguro de senhas
-- **Roo / Rubyzip** — exportação de planilhas e arquivos ZIP
+- **Stripe** 13.x — processamento de pagamentos
+- **Ed25519** (OpenSSL) — assinatura digital de tokens
+- **Google Sheets API** — registro e validação de licenças (via Python `gspread`)
+- **net-smtp** — envio de emails com licença
+- **Roo / Rubyzip** — exportação de planilhas e ZIP
 - **Nokogiri** — geração de XML/HTML
+- **Rufus-scheduler** — agendamento de backups e revalidação de licenças
 - **Rack Protection** — proteção contra CSRF e XSS
 
 ---
@@ -62,52 +68,95 @@ Sistema web de gerenciamento de estoque desenvolvido em **Ruby + Sinatra + Postg
 
 ```
 GerenciadorClaude/
-├── app.rb                        # Ponto de entrada da aplicação
-├── config.ru                     # Configuração do Rack
-├── Gemfile                       # Dependências Ruby
-├── schema.sql                    # Schema do banco de dados
-├── fix_fk_category.sql           # Correção de FK de categorias
-├── iniciar.sh                    # Script de inicialização Linux
-├── iniciar.bat                   # Script de inicialização Windows
+├── app.rb                          # Ponto de entrada da aplicação
+├── config.ru                       # Configuração do Rack
+├── Gemfile                         # Dependências Ruby
+├── .env                            # Variáveis de ambiente (desenvolvimento)
+├── .env.example                    # Template do .env
+├── db/
+│   └── setup.rb                    # Criação do banco, tabelas e admin inicial
 │
-├── models/
-│   ├── base.rb                   # Módulo base com conexão ao DB
-│   ├── user.rb                   # Model de usuários
-│   ├── category.rb               # Model de categorias
-│   ├── product.rb                # Model de produtos
-│   ├── movement.rb               # Model de movimentações
-│   └── order.rb                  # Model de pedidos
+├── app/
+│   ├── controllers/
+│   │   ├── auth_controller.rb           # Login e logout
+│   │   ├── dashboard_controller.rb      # Página inicial
+│   │   ├── categories_controller.rb     # CRUD de categorias
+│   │   ├── products_controller.rb       # CRUD de produtos
+│   │   ├── movements_controller.rb      # Entradas e saídas
+│   │   ├── orders_controller.rb         # Pedidos
+│   │   ├── reports_controller.rb        # Relatórios
+│   │   ├── backups_controller.rb        # Backups
+│   │   ├── audit_controller.rb          # Auditoria
+│   │   ├── import_controller.rb         # Importação de dados
+│   │   ├── users_controller.rb          # Gerenciamento de usuários
+│   │   ├── licenses_controller.rb       # Gerenciamento de licenças
+│   │   ├── payments_controller.rb       # Checkout Stripe
+│   │   └── webhooks_controller.rb       # Webhooks Stripe
+│   │
+│   ├── models/
+│   │   ├── base.rb                 # Módulo base com conexão PG
+│   │   ├── user.rb                 # Usuários
+│   │   ├── category.rb             # Categorias
+│   │   ├── product.rb              # Produtos
+│   │   ├── movement.rb             # Movimentações
+│   │   ├── order.rb                # Pedidos
+│   │   ├── audit_log.rb            # Log de auditoria
+│   │   ├── import.rb               # Importação de planilhas
+│   │   ├── license.rb              # Licenças de clientes
+│   │   └── subscription.rb         # Assinaturas Stripe
+│   │
+│   ├── services/
+│   │   ├── inventory/
+│   │   │   ├── add_stock_service.rb
+│   │   │   ├── remove_stock_service.rb
+│   │   │   └── adjust_stock_service.rb
+│   │   ├── backups/
+│   │   │   └── json_backup_service.rb
+│   │   ├── license/
+│   │   │   └── google_sheet_validator.rb
+│   │   └── email_service.rb
+│   │
+│   ├── lib/
+│   │   ├── backup_scheduler.rb     # Backup automático agendado
+│   │   └── license_scheduler.rb    # Revalidação periódica de licenças
+│   │
+│   └── views/
+│       ├── layout.erb              # Layout principal
+│       ├── login.erb               # Tela de login
+│       ├── dashboard.erb           # Dashboard
+│       ├── license.erb             # Tela de licença
+│       ├── backups.erb
+│       ├── reports.erb
+│       ├── categories/
+│       ├── products/
+│       ├── movements/
+│       ├── orders/
+│       ├── imports/
+│       ├── users/
+│       ├── licenses/
+│       ├── payments/
+│       └── errors/
 │
-├── controllers/
-│   ├── auth_controller.rb        # Login e logout
-│   ├── dashboard_controller.rb   # Página inicial
-│   ├── categories_controller.rb  # CRUD de categorias
-│   ├── products_controller.rb    # CRUD de produtos
-│   ├── movements_controller.rb   # Entradas e saídas
-│   ├── orders_controller.rb      # Pedidos
-│   ├── reports_controller.rb     # Relatórios
-│   └── backups_controller.rb     # Backups
+├── scripts/
+│   ├── google_sheet_validator.py   # Validação e registro de licenças no Google Sheets
+│   ├── payment_processor.py        # Processamento de pagamentos (Python)
+│   ├── setup_stripe_prices.rb      # Criação de produtos/preços no Stripe
+│   ├── resetar_licenca.sh          # Reset de licença local
+│   ├── install.sh                  # Instalação rápida
+│   └── iniciar.sh                  # Inicialização
 │
-├── views/
-│   ├── layout.erb                # Layout principal com sidebar
-│   ├── login.erb                 # Tela de login
-│   ├── dashboard.erb             # Dashboard
-│   ├── categories/index.erb
-│   ├── products/
-│   │   ├── index.erb
-│   │   ├── show.erb
-│   │   └── form.erb
-│   ├── movements/
-│   │   ├── index.erb
-│   │   └── quick_out.erb
-│   ├── orders/
-│   │   ├── index.erb
-│   │   └── show.erb
-│   ├── reports/index.erb
-│   ├── backups/index.erb
-│   └── errors/
-│       ├── forbidden.erb
-│       └── low_stock.erb
+├── deploy/
+│   ├── linux/        # Pacote .deb + systemd
+│   ├── windows/      # Script .bat + .ps1
+│   ├── macos/        # .app bundle + LaunchAgents
+│   ├── docker/       # Dockerfile + docker-compose
+│   ├── android/      # APK do app Android
+│   └── pwa/          # Manifest + service-worker
+│
+├── storage/
+│   ├── machine_id                # Identificador único da instalação
+│   ├── receipts/                 # Comprovantes de pagamento (.txt)
+│   └── backups/                  # Backups do banco (.sql.gz)
 │
 └── public/
     └── style.css                 # Estilos globais
@@ -117,17 +166,9 @@ GerenciadorClaude/
 
 ## Pré-requisitos
 
-### Linux / Windows
-
 - [Ruby 3.2.3](https://www.ruby-lang.org/pt/downloads/)
 - [PostgreSQL 14+](https://www.postgresql.org/download/)
 - Bundler: `gem install bundler`
-
-### Para compilar o APK Android
-
-- [Android Studio Hedgehog 2023.1.1+](https://developer.android.com/studio)
-- JDK 17: `sudo apt install openjdk-17-jdk`
-- Android SDK 34
 
 ---
 
@@ -136,7 +177,7 @@ GerenciadorClaude/
 ### 1. Clone o repositório
 
 ```bash
-git clone https://github.com/seu-usuario/GerenciadorClaude.git
+git clone https://github.com/VICTORGG04/GerenciadorClaude.git
 cd GerenciadorClaude
 ```
 
@@ -146,42 +187,44 @@ cd GerenciadorClaude
 bundle install
 ```
 
+### 3. Configure o ambiente
+
+```bash
+cp .env.example .env
+# Edite .env com suas credenciais (DB, Stripe, Google Sheets, SMTP)
+```
+
+### 4. Crie o banco de dados
+
+```bash
+ruby db/setup.rb
+```
+
+O script cria o banco, as tabelas e o usuário administrador inicial automaticamente.
+
+### 5. Inicie o servidor
+
+```bash
+bundle exec ruby app.rb
+```
+
+Acesse: [http://localhost:4568](http://localhost:4568)
+
 ---
 
 ## Banco de Dados
 
-### Criar o banco e o usuário no PostgreSQL
+### Criar manualmente (alternativa ao `db/setup.rb`)
 
 ```bash
 sudo -u postgres psql
 ```
 
 ```sql
-CREATE USER SEU.USUARIO WITH PASSWORD 'SUA-SENHA';
-CREATE DATABASE gerenciador_estoque OWNER SEU.USUARIO;
+CREATE USER gerenciador_erp WITH PASSWORD 'sua_senha';
+CREATE DATABASE gerenciador_estoque OWNER gerenciador_erp;
+GRANT ALL PRIVILEGES ON DATABASE gerenciador_estoque TO gerenciador_erp;
 \q
-```
-
-### Criar as tabelas
-
-```bash
-psql -U SEU.USUARIO -d gerenciador_estoque -f schema.sql
-```
-
-### Criar o usuário administrador inicial
-
-Gere o hash da senha:
-
-```bash
-ruby -r bcrypt -e "puts BCrypt::Password.create('admin123', cost: 12)"
-```
-
-Copie o hash gerado e insira no banco (substitua `HASH_AQUI`):
-
-```bash
-psql -U SEU.USUARIO -d gerenciador_estoque -c \
-  "INSERT INTO users (name, email, password_hash, role) \
-   VALUES ('Administrador', 'admin@gerenciador.local', 'HASH_AQUI', 'admin');"
 ```
 
 ### Credenciais padrão de acesso
@@ -191,7 +234,7 @@ psql -U SEU.USUARIO -d gerenciador_estoque -c \
 | E-mail | admin@gerenciador.local |
 | Senha | admin123 |
 
-> ⚠️ Troque a senha após o primeiro login em produção.
+> Troque a senha após o primeiro login em produção.
 
 ---
 
@@ -203,407 +246,191 @@ psql -U SEU.USUARIO -d gerenciador_estoque -c \
 bundle exec ruby app.rb
 ```
 
-Acesse no navegador: [http://localhost:4568](http://localhost:4568)
-
-Para parar: `Ctrl + C`
+Acesse: [http://localhost:4568](http://localhost:4568)
 
 ### Produção (Linux — systemd)
 
 ```bash
-# Iniciar
-sudo systemctl start gerenciador-erp
-
-# Parar
-sudo systemctl stop gerenciador-erp
-
-# Status
-sudo systemctl status gerenciador-erp
-
-# Ver porta real em uso
-sudo systemctl status gerenciador-erp | grep Listening
-# ou: grep APP_PORT /etc/gerenciador-erp/.env
+systemctl start gerenciador-erp   # Iniciar
+systemctl stop gerenciador-erp    # Parar
+systemctl status gerenciador-erp  # Status
+systemctl restart gerenciador-erp # Reiniciar
 
 # Logs
 journalctl -u gerenciador-erp -f
+
+# Matar processo na porta
+lsof -ti:4568 | xargs kill -9
 ```
-
-### Matar processo por porta (forçado)
-
-Se o servidor não responder ao stop normal:
-
-```bash
-# Linux
-lsof -ti:4568 | xargs kill -9      # substitua 4568 pela porta real
-
-# Windows (PowerShell como Admin)
-netstat -ano | findstr :4568
-taskkill /PID <PID> /F
-```
-
-> A porta real pode ser **4568** ou outra (o `postinst` escolhe automaticamente uma porta livre na instalação). Confirme com `systemctl status` ou olhe no `/etc/gerenciador-erp/.env`.
 
 ---
 
-## Instalação automática (qualquer plataforma)
+## Implantação
 
-Cada plataforma possui um script auto-contido em `APK--DEB--BAT(Software)/` que:
-
-1. **Detecta** se você já está dentro do repositório clonado
-2. **Se não estiver**, baixa o projeto do GitHub **sem precisar de conta GitHub** (usa ZIP via `curl`/`wget`)
-3. **Instala** dependências e configura o ambiente
-4. **Inicia** o servidor
+Cada plataforma possui um instalador auto-contido em `deploy/`:
 
 | Plataforma | Comando |
-|------------|---------|
-| 🐧 **Linux** (Debian/Ubuntu) | `cd APK--DEB--BAT\(Software\)/linux && sudo bash install.sh` |
-| 🪟 **Windows** | `cd APK--DEB--BAT\(Software\)/windows` → `setup.bat` (como Administrador) |
-| 🍎 **macOS** | Duplo clique em `APK--DEB--BAT\(Software\)/macos/start.command` |
-| 🐳 **Docker** | `cd APK--DEB--BAT\(Software\)/docker && bash install.sh` |
-| 📱 **Android** | Copiar `APK--DEB--BAT\(Software\)/android/GerenciadorERP-Android.apk` para o celular |
-| 🌐 **PWA** | `cd APK--DEB--BAT\(Software\)/pwa && bash install.sh` (dentro do repositório) |
-
-> **Não precisa de conta GitHub.** O repositório é público e os scripts baixam via ZIP quando `git` não está disponível.
-
-### Instalação manual (qualquer SO)
-
-```bash
-git clone https://github.com/VICTORGG04/GerenciadorClaude.git
-cd GerenciadorClaude
-bundle install
-# Configure o .env (veja .env.example)
-ruby db/setup.rb
-bundle exec ruby app.rb
-```
-
-Acesse: [http://localhost:4568](http://localhost:4568)
-
----
-
-## Mobile — Como funciona
-
-O app mobile **não processa nada localmente**. Ele é um WebView — uma janela de navegador embutida — que exibe o sistema ERP rodando no servidor do computador da empresa. Toda a lógica, banco de dados e autenticação ficam no PC.
-
-```
-[Celular / Tablet]  ◄── Wi-Fi ──►  [PC da Empresa]
-  APK Android                       Ruby + Sinatra + PostgreSQL
-  PWA iPhone                        Porta: 4568
-```
-
-> ⚠️ O celular e o computador **devem** estar conectados ao mesmo Wi-Fi para o app funcionar.
-
----
-
-## Mobile — Configurar o Servidor
-
-Antes de instalar o app em qualquer dispositivo, configure o servidor para aceitar conexões Wi-Fi.
-
-### 1. Adicione as configurações no `app.rb`
-
-Logo após o bloco `DB = PG.connect(...)`, adicione:
-
-```ruby
-# Aceita conexões de qualquer IP da rede local
-set :bind, '0.0.0.0'
-set :port, 4568
-```
-
-### 2. Libere a porta no firewall
-
-**Linux:**
-```bash
-sudo ufw allow 4568/tcp
-sudo ufw reload
-
-# Verificar:
-sudo ufw status | grep 4568
-```
-
-**Windows:**
-Painel de Controle → Firewall do Windows → Regras de Entrada → Nova Regra → Porta → TCP → 4568 → Permitir
-
-### 3. Descubra o IP do servidor
-
-**Linux:**
-```bash
-ip addr show | grep "inet " | grep -v 127
-# Exemplo: inet 192.168.0.6/24 ... wlp6s0
-#                ^^^^^^^^^^^^ use este IP no celular
-```
-
-**Windows:**
-```cmd
-ipconfig
-# Procure "Endereço IPv4" na interface Wi-Fi
-```
-
-### 4. Inicie o servidor
-
-```bash
-cd ~/RubymineProjects/GerenciadorClaude
-bundle exec ruby app.rb
-
-# Saída esperada — deve ser 0.0.0.0, não 127.0.0.1:
-# * Listening on http://0.0.0.0:4568
-```
-
----
-
-## Mobile — Android (APK)
-
-### Opção A — Instalar via cabo USB (recomendado)
-
-**1. Ative o Modo Desenvolvedor no celular**
-
-Vá em **Configurações → Sobre o telefone** e toque **7 vezes seguidas** em **"Número da versão"** até aparecer *"Você agora é um desenvolvedor!"*
-
-> Em alguns celulares fica em: Configurações → Sistema → Sobre o telefone
-
-**2. Ative a Depuração USB**
-
-Vá em **Configurações → Opções do Desenvolvedor**, ative **"Depuração USB"**, conecte o cabo USB ao PC e toque **"OK"** no popup que aparecer no celular.
-
-**3. Verifique se o celular foi reconhecido**
-
-```bash
-adb devices
-
-# Saída esperada:
-# List of devices attached
-# R5CT21XXXXX    device   ← celular reconhecido
-```
-
-> Se aparecer `unauthorized`: desbloqueie o celular e aceite o popup.
-> Se não aparecer popup: `adb kill-server && adb start-server`
-
-**4. Instale o APK**
-
-```bash
-cd ~/RubymineProjects/GerenciadorClaudeAndroide/GerenciadorERP-Android
-./gradlew installDebug
-
-# Saída esperada:
-# BUILD SUCCESSFUL
-# Installed on 1 device.
-```
-
----
-
-### Opção B — Instalar via arquivo (sem cabo)
-
-**1. Localize o APK no PC**
-
-```
-~/RubymineProjects/GerenciadorClaudeAndroide/
-  GerenciadorERP-Android/app/build/outputs/apk/debug/
-    app-debug.apk
-```
-
-**2. Transfira o APK para o celular**
-
-Escolha uma das opções:
-- **Google Drive** — faça upload e abra no celular
-- **WhatsApp** — envie o arquivo para si mesmo
-- **Cabo USB** — copie para a pasta Downloads do celular
-- **Bluetooth** — envie diretamente
-
-**3. Habilite instalação de fontes desconhecidas**
-
-Vá em **Configurações → Segurança → Instalar apps desconhecidos**, selecione o app que vai abrir o APK (ex: Arquivos, Chrome) e ative **"Permitir desta fonte"**.
-
-> No Android 8+: a permissão é por app, não global.
-
-**4. Instale tocando no arquivo**
-
-Abra o gerenciador de arquivos → pasta Downloads → toque em `app-debug.apk` → toque em **"Instalar"**.
-
----
-
-### Primeira abertura do app
-
-**5. Configure o servidor**
-
-Na primeira abertura aparecerá a tela de configuração:
-
-- **IP do Servidor:** `192.168.0.6` (o IP do seu PC)
-- **Porta:** `4568`
-- Toque em **"Conectar"** — ou use **"Encontrar servidor automaticamente"**
-
-> O app salva essa configuração. Nas próximas aberturas vai direto para o sistema.
-
-**6. Faça login**
-
-- **E-mail:** `admin@gerenciador.local`
-- **Senha:** `admin123`
-
-**Para trocar o servidor depois:** Menu (⋮) → Trocar Servidor
-
----
-
-## Mobile — Android (compilar o APK)
-
-### Pré-requisitos
-
-- Android Studio Hedgehog 2023.1.1 ou superior
-- JDK 17:
-  ```bash
-  sudo apt install openjdk-17-jdk -y
-  sudo update-alternatives --config java   # selecione Java 17
-  java -version                            # confirme: openjdk 17
-  ```
-
-### Compilar pelo Android Studio
-
-**1.** File → Open → selecione a pasta `GerenciadorERP-Android`
-
-**2.** Aguarde o Gradle sync terminar
-
-**3. APK de debug (para testes):**
-Build → Build Bundle(s) / APK(s) → Build APK(s)
-Arquivo: `app/build/outputs/apk/debug/app-debug.apk`
-
-**4. APK de release (para distribuir):**
-Build → Generate Signed Bundle / APK → APK
-Arquivo: `app/build/outputs/apk/release/app-release.apk`
-
-### Compilar pelo terminal
-
-```bash
-cd GerenciadorERP-Android
-
-# Gerar APK debug
-./gradlew assembleDebug
-
-# Instalar direto no celular conectado via USB
-./gradlew installDebug
-```
-
-### Configurar o `local.properties`
-
-Se o Android Studio não encontrar o SDK automaticamente:
-
-```bash
-echo "sdk.dir=$HOME/Android/Sdk" > local.properties
-```
-
----
-
-## Mobile — iPhone (PWA)
-
-Não é necessário nenhum arquivo de instalação. O Safari salva o sistema como um app na tela inicial, abrindo em tela cheia sem barra de navegação.
-
-> ⚠️ Use obrigatoriamente o **Safari**. Chrome e Firefox não suportam PWA no iOS.
-
-| Requisito | Valor |
 |---|---|
-| Versão mínima do iOS | iOS 14+ |
-| Navegador obrigatório | Safari |
-| Arquivo de instalação | Nenhum |
-| Conta Apple | Não necessário |
+| **Linux** (Debian/Ubuntu) | `cd deploy/linux && sudo bash install.sh` |
+| **Windows** | `cd deploy/windows` → `setup.bat` (como Administrador) |
+| **macOS** | Duplo clique em `deploy/macos/start.command` |
+| **Docker** | `cd deploy/docker && bash install.sh` |
+| **Android** | Copiar `deploy/android/GerenciadorERP-Android.apk` para o celular |
+| **PWA** | `cd deploy/pwa && bash install.sh` (dentro do repositório) |
 
-**1. Conecte o iPhone ao Wi-Fi da empresa**
-
-**2. Abra o Safari e acesse o sistema**
-
-```
-http://192.168.0.6:4568
-```
-
-(substitua pelo IP do seu servidor)
-
-**3. Adicione à Tela de Início**
-
-Toque no ícone de **compartilhar** (quadrado com seta) → **"Adicionar à Tela de Início"** → **"Adicionar"**.
-
-**4. Abra pelo ícone**
-
-Toque no ícone **ERP Estoque** na tela inicial. Abre em tela cheia sem barra do Safari. Faça login normalmente.
-
-> O iPhone precisa estar na rede Wi-Fi da empresa toda vez que usar o sistema.
+Os scripts detectam se estão dentro do repositório clonado; se não estiverem, baixam o projeto do GitHub automaticamente via ZIP.
 
 ---
 
-## Estrutura do App Android
+## Mobile
+
+O app mobile é um **WebView** que exibe o sistema ERP rodando no servidor da empresa. Toda a lógica fica no PC; o celular apenas exibe a interface.
 
 ```
-GerenciadorERP-Android/
-├── app/src/main/
-│   ├── java/com/gerenciador/erp/
-│   │   ├── ui/
-│   │   │   ├── SplashActivity.kt      Tela inicial (1.8s)
-│   │   │   ├── SetupActivity.kt       Configuração do IP do servidor
-│   │   │   └── MainActivity.kt        WebView principal + monitoramento de rede
-│   │   ├── network/
-│   │   │   ├── NetworkChecker.kt      Verifica Wi-Fi e alcançabilidade do servidor
-│   │   │   └── ServerScanner.kt       Varre a rede para encontrar o servidor
-│   │   └── utils/
-│   │       └── PreferencesManager.kt  Salva IP/porta em SharedPreferences
-│   └── res/
-│       ├── layout/
-│       │   ├── activity_splash.xml
-│       │   ├── activity_setup.xml
-│       │   └── activity_main.xml
-│       ├── values/
-│       │   ├── colors.xml             Paleta dark (igual ao sistema web)
-│       │   ├── strings.xml
-│       │   └── themes.xml
-│       └── xml/
-│           └── network_security_config.xml  Permite HTTP em rede local
-└── app/build.gradle
+[Celular]  ◄── Wi-Fi ──►  [Servidor]
+                           Ruby + Sinatra + PostgreSQL
+                           Porta: 4568
 ```
+
+### Android (APK)
+
+1. Transfira `deploy/android/GerenciadorERP-Android.apk` para o celular
+2. Abra o arquivo e permita instalação de fontes desconhecidas
+3. Na primeira abertura, configure o IP do servidor (ex: `192.168.0.6`) e porta (`4568`)
+
+### iPhone (PWA)
+
+1. Abra o **Safari** e acesse `http://IP_DO_SERVIDOR:4568`
+2. Toque em Compartilhar → Adicionar à Tela de Início
+
+> iPhone e servidor devem estar na mesma rede Wi-Fi.
 
 ---
 
 ## Rotas da Aplicação
 
-| Método | Rota | Descrição | Permissão |
-|---|---|---|---|
-| GET | `/login` | Tela de login | Pública |
-| POST | `/login` | Autenticar usuário | Pública |
-| GET | `/logout` | Encerrar sessão | Logado |
-| GET | `/` | Dashboard | Logado |
-| GET | `/products` | Listar produtos | Logado |
-| GET | `/products/new` | Formulário novo produto | Admin |
-| POST | `/products` | Criar produto | Admin |
-| GET | `/products/:id` | Detalhes do produto | Logado |
-| GET | `/products/:id/edit` | Editar produto | Admin |
-| POST | `/products/:id` | Atualizar produto | Admin |
-| POST | `/products/:id/delete` | Excluir produto | Admin |
-| GET | `/categories` | Listar categorias | Logado |
-| POST | `/categories` | Criar categoria | Admin |
-| POST | `/categories/:id/delete` | Excluir categoria | Admin |
-| GET | `/movements` | Histórico de movimentações | Logado |
-| POST | `/movements` | Registrar movimentação | Logado |
-| GET | `/quick_out` | Tela de baixa rápida | Logado |
-| POST | `/quick_out` | Executar baixa rápida | Logado |
-| GET | `/orders` | Listar pedidos | Logado |
-| GET | `/orders/:id` | Detalhes do pedido | Logado |
-| POST | `/orders` | Criar pedido | Logado |
-| GET | `/reports` | Relatórios | Logado |
-| GET | `/backups` | Backups | Admin |
-| GET | `/users` | Gerenciar usuários | Admin |
+### Públicas
+
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/login` | Tela de login |
+| POST | `/login` | Autenticar |
+| GET | `/license` | Status da licença |
+| GET | `/pricing` | Planos e preços |
+| GET | `/stripe` | Redirecionar para checkout Stripe |
+| GET | `/success` | Sucesso após pagamento |
+| GET | `/cancel` | Pagamento cancelado |
+| POST | `/webhooks/stripe` | Webhooks Stripe (invoice.paid, etc.) |
+| GET | `/receipts/:filename` | Download de comprovante de pagamento |
+
+### Autenticadas (qualquer perfil)
+
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/` | Dashboard |
+| GET | `/products` | Listar produtos |
+| GET | `/products/:id` | Detalhes do produto |
+| GET | `/categories` | Listar categorias |
+| GET | `/movements` | Histórico de movimentações |
+| POST | `/movements` | Registrar movimentação |
+| GET | `/quick_out` | Baixa rápida |
+| POST | `/quick_out` | Executar baixa rápida |
+| GET | `/orders` | Listar pedidos |
+| GET | `/orders/:id` | Detalhes do pedido |
+| POST | `/orders` | Criar pedido |
+| GET | `/reports` | Relatórios |
+| GET | `/import` | Importar planilha |
+| POST | `/import` | Executar importação |
+
+### Administrador
+
+| Método | Rota | Descrição |
+|---|---|---|
+| GET/POST | `/products/new` | Criar produto |
+| GET/POST | `/products/:id/edit` | Editar produto |
+| POST | `/products/:id/delete` | Excluir produto |
+| POST | `/categories` | Criar categoria |
+| POST | `/categories/:id/delete` | Excluir categoria |
+| GET | `/backups` | Gerenciar backups |
+| GET | `/audit` | Log de auditoria |
+| GET | `/users` | Gerenciar usuários |
+| GET/POST | `/licenses` | Gerenciar licenças de clientes |
+| GET/POST | `/licenses/new` | Nova licença |
 
 ---
 
 ## Perfis de Usuário
 
-| Perfil | `role` no banco | Acesso |
+| Perfil | `role` | Acesso |
 |---|---|---|
-| Administrador | `admin` | Acesso total, incluindo usuários, backups e exclusões |
-| Operador | `operator` | Consultas, movimentações e pedidos — sem acesso a configurações |
+| Administrador | `admin` | Acesso total |
+| Operador | `operator` | Consultas, movimentações e pedidos |
 
 ---
 
 ## Variáveis de Ambiente
 
+### Banco de Dados
+
 | Variável | Padrão | Descrição |
 |---|---|---|
-| `SESSION_SECRET` | valor interno | Chave secreta da sessão — **troque em produção** |
-| `DATABASE_URL` | — | Alternativa para configurar conexão via URL |
-| `LICENSE_TOKEN` | vazio | Token de licença. Define o plano do sistema — veja abaixo |
+| `DB_HOST` | `127.0.0.1` | Host do PostgreSQL |
+| `DB_PORT` | `5432` | Porta do PostgreSQL |
+| `DB_NAME` | `gerenciador_estoque` | Nome do banco |
+| `DB_USER` | `gerenciador_erp` | Usuário do banco |
+| `DB_PASSWORD` | — | Senha do banco |
 
-```bash
-SESSION_SECRET="minha_chave_super_secreta" bundle exec ruby app.rb
-```
+### Servidor
+
+| Variável | Padrão | Descrição |
+|---|---|---|
+| `APP_HOST` | `0.0.0.0` | IP do servidor |
+| `APP_PORT` | `4568` | Porta do servidor |
+| `SESSION_SECRET` | auto | Chave secreta da sessão |
+| `ALLOWED_HOST` | — | Host permitido para redirecionamentos |
+| `FREE_TRIAL_DAYS` | `30` | Dias de teste grátis |
+
+### Stripe (Pagamentos)
+
+| Variável | Descrição |
+|---|---|
+| `STRIPE_SECRET_KEY` | Chave secreta da API Stripe |
+| `STRIPE_PUBLISHABLE_KEY` | Chave publicável (frontend) |
+| `STRIPE_WEBHOOK_SECRET` | Segredo do webhook Stripe |
+| `STRIPE_PRICE_GOLD_MONTHLY` | ID do preço Gold mensal |
+| `STRIPE_PRICE_GOLD_SEMIANNUAL` | ID do preço Gold semestral |
+| `STRIPE_PRICE_GOLD_LIFETIME` | ID do preço Gold vitalício |
+| `STRIPE_PRICE_PLATINUM_MONTHLY` | ID do preço Platinum mensal |
+| `STRIPE_PRICE_PLATINUM_SEMIANNUAL` | ID do preço Platinum semestral |
+| `STRIPE_PRICE_PLATINUM_LIFETIME` | ID do preço Platinum vitalício |
+| `STRIPE_PRICE_ENTERPRISE_MONTHLY` | ID do preço Enterprise mensal |
+| `STRIPE_PRICE_ENTERPRISE_SEMIANNUAL` | ID do preço Enterprise semestral |
+| `STRIPE_PRICE_ENTERPRISE_LIFETIME` | ID do preço Enterprise vitalício |
+
+### Google Sheets (Licenças)
+
+| Variável | Descrição |
+|---|---|
+| `GOOGLE_SHEET_ID` | ID da planilha de licenças |
+| `GOOGLE_SHEET_CREDENTIALS` | Caminho para o JSON da service account |
+
+### Licenciamento
+
+| Variável | Padrão | Descrição |
+|---|---|---|
+| `LICENSE_TOKEN` | — | Token de licença (define o plano) |
+| `LICENSE_SECRET` | hash interno | Chave HMAC para tokens free trial |
+
+### Email (SMTP)
+
+| Variável | Descrição |
+|---|---|
+| `SMTP_HOST` | Servidor SMTP (ex: smtp.gmail.com) |
+| `SMTP_PORT` | Porta SMTP (ex: 587) |
+| `SMTP_USER` | Usuário SMTP |
+| `SMTP_PASSWORD` | Senha ou app password |
+| `SMTP_FROM` | Remetente dos emails |
+| `SMTP_STARTTLS` | `true` para habilitar TLS |
 
 ---
 
@@ -611,95 +438,108 @@ SESSION_SECRET="minha_chave_super_secreta" bundle exec ruby app.rb
 
 O ERP possui **4 planos** que liberam funcionalidades progressivamente:
 
-| Plano | Limite Produtos | Limite Usuários | Features |
-|-------|:---------------:|:---------------:|----------|
-| **Free** (padrão) | 20 | 1 | dashboard, produtos, importação, PWA |
-| **Gold** | 500 | 3 | + categorias, movimentações, Android, baixa rápida, usuários |
-| **Platinum** | ilimitado | ilimitado | + pedidos, relatórios, backup, auditoria, estoque completo |
+| Plano | Produtos | Usuários | Features |
+|---|---|---|---|
+| **Free** (trial) | 20 | 1 | dashboard, produtos, PWA |
+| **Gold** | 500 | 3 | + categorias, movimentações, Android, baixa rápida |
+| **Platinum** | ilimitado | ilimitado | + pedidos, relatórios, backup, auditoria |
 | **Enterprise** | ilimitado | ilimitado | + whitelabel, código-fonte, treinamento |
 
 ### Como funciona
 
-Cada instalação tem um token de licença armazenado no `.env` (`LICENSE_TOKEN`). Se vazio ou inválido, o sistema opera como **Free**. O token é uma string no formato `<plano>.<timestamp>.<cliente>.<assinatura>`, assinada digitalmente com Ed25519.
+Cada instalação tem um token de licença armazenado no `.env` (`LICENSE_TOKEN`). Se vazio ou inválido, o sistema opera como **Free** (trial de 30 dias).
 
-### Gerenciar licenças de clientes
+O token segue o formato: `<plano>.<timestamp>.<identificador>.<assinatura>`.
 
-Administradores podem gerenciar clientes e tokens via painel web em **Configurações → Licenças** (`/licenses`):
+- **Free trial**: assinado com HMAC-SHA256 (`LICENSE_SECRET`)
+- **Planos pagos**: assinados com Ed25519 (chave privada do desenvolvedor)
 
-- Criar registros de clientes (empresa, CNPJ, endereço, contato)
-- Colar tokens fornecidos pelo desenvolvedor
-- Visualizar plano vigente, status e data de expiração
+### Validação automática
 
-> A geração de tokens é feita exclusivamente pelo desenvolvedor, com a chave privada Ed25519. O servidor apenas **verifica** a assinatura.
+O sistema revalida a licença a cada **6 horas** consultando o Google Sheets. Se a licença expirou ou foi revogada, o plano é rebaixado automaticamente.
+
+---
+
+## Pagamentos (Stripe)
+
+### Fluxo de compra
+
+1. Usuário acessa `/pricing` e escolhe um plano
+2. É redirecionado ao checkout Stripe (página segura do Stripe)
+3. Após pagamento, o Stripe envia webhook `checkout.session.completed` e `invoice.paid`
+4. O sistema:
+   - Gera um novo token de licença paga
+   - Registra no Google Sheets com status `pago`
+   - Marca o token free trial como `upgraded`
+   - Gera um comprovante `.txt` em `storage/receipts/`
+   - Envia o token por email (se SMTP configurado)
+5. Usuário é redirecionado para `/success` com o token exibido
+
+### Webhooks
+
+| Evento | Ação |
+|---|---|
+| `checkout.session.completed` | Registrar assinatura no banco |
+| `invoice.paid` | Gerar licença paga + comprovante + email |
+| `invoice.payment_failed` | Registrar falha |
+| `customer.subscription.updated` | Atualizar status |
+| `customer.subscription.deleted` | Cancelar licença |
+
+### Preços
+
+Os IDs dos preços são configurados via variáveis de ambiente (`STRIPE_PRICE_*`) e criados com o script `scripts/setup_stripe_prices.rb`.
 
 ---
 
 ## Solução de Problemas
 
-### `PG::UndefinedTable` — tabela não existe
+### Banco de dados
+
 ```bash
-psql -U SEU.USUARIO -d gerenciador_estoque -f schema.sql
+# Tabela não existe
+ruby db/setup.rb
+
+# Erro de conexão
+# Verifique DB_HOST, DB_USER, DB_PASSWORD no .env
 ```
 
-### `PG::ForeignKeyViolation` ao excluir categoria
+### Porta em uso
+
 ```bash
-psql -U SEU.USUARIO -d gerenciador_estoque -f fix_fk_category.sql
-```
-
-### `undefined method 'first' for String` no layout.erb
-Substitua na linha 63 do `views/layout.erb`:
-```erb
-<%# antes: %>
-<%= current_user.name.split.map(&:first).first(2).join.upcase %>
-
-<%# depois: %>
-<%= current_user.name.split.map { |w| w[0] }.first(2).join.upcase %>
-```
-
-### Porta 4568 já em uso
-```bash
-# Linux
 lsof -ti:4568 | xargs kill -9
-
-# Windows
-netstat -ano | findstr :4568
-taskkill /PID <PID> /F
 ```
 
-### App mobile mostra "Servidor não encontrado"
-- Verifique se o servidor Ruby está rodando no PC
-- Confirme que aparece `0.0.0.0:4568` (não `127.0.0.1`)
-- Certifique-se que celular e PC estão no mesmo Wi-Fi
+### Webhook Stripe não funciona
+
+- Verifique se `STRIPE_WEBHOOK_SECRET` está correto
+- Teste com Stripe CLI: `stripe trigger invoice.paid`
+- Confira os logs: `journalctl -u gerenciador-erp -f`
+- O endpoint do webhook deve ser: `https://SEU_DOMINIO/stripe`
+
+### Email não enviado
+
+- Verifique SMTP_HOST, SMTP_USER, SMTP_PASSWORD
+- Gmail: use senha de app (2 fatores obrigatório)
+- Confira os logs: procure por `[EmailService]`
+
+### Google Sheets não atualiza
+
+- Verifique GOOGLE_SHEET_ID e GOOGLE_SHEET_CREDENTIALS
+- A service account precisa ter acesso de edição à planilha
+- O Python `gspread` precisa estar instalado: `pip install gspread google-oauth`
+
+### Licença não validada
+
+- Verifique se o token está presente no `.env`
+- Confira se o token está registrado no Google Sheets
+- A revalidação ocorre a cada 6 horas automaticamente
+
+### Mobile "Servidor não encontrado"
+
+- Servidor rodando com `0.0.0.0` (não `127.0.0.1`)
+- Celular e servidor no mesmo Wi-Fi
+- Firewall liberado (porta 4568)
 - Teste abrindo `http://IP:4568` no navegador do celular
-
-### `adb devices` mostra `unauthorized`
-```bash
-# Desbloqueie o celular e aceite o popup
-# Se necessário, reinicie o adb:
-adb kill-server && adb start-server
-```
-
-### Erro de compilação Android: `Unsupported class file major version`
-```bash
-sudo apt install openjdk-17-jdk -y
-sudo update-alternatives --config java   # selecione Java 17
-rm -rf ~/.gradle/caches
-./gradlew assembleDebug
-```
-
-### SDK não encontrado ao compilar Android
-```bash
-echo "sdk.dir=$HOME/Android/Sdk" > local.properties
-```
-
-### iPhone não salva como app (PWA)
-- Use obrigatoriamente o **Safari** (Chrome e Firefox não suportam no iOS)
-- Verifique se o iOS é versão 14 ou superior
-
-### IP do servidor mudou e o app não conecta
-- **Android:** Menu (⋮) → Trocar Servidor → informe o novo IP
-- **iPhone:** Abra o Safari e acesse o novo IP diretamente
-- **Dica:** Configure IP fixo no roteador para o PC do servidor
 
 ---
 

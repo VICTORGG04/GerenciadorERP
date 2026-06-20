@@ -20,6 +20,8 @@ gem "dotenv",           "~> 3.1"   # variáveis de ambiente via .env
 gem "rufus-scheduler",  "~> 3.9"   # backup automático agendado
 gem "google-apis-sheets_v4", "~> 0.40"  # validação de licenças via Google Sheets
 gem "googleauth",       "~> 1.11"  # autenticação service account Google
+gem "stripe",           "~> 13.0"  # pagamentos via cartão
+gem "net-smtp"                     # envio de email (stdlib gem)
 
 group :development do
   gem "rubocop", require: false

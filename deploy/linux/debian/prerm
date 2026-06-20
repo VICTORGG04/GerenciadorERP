@@ -1,0 +1,10 @@
+#!/bin/bash
+set -e
+
+case "$1" in
+  remove|upgrade|deconfigure)
+    echo ">>> Parando serviço gerenciador-erp..."
+    systemctl stop gerenciador-erp.service 2>/dev/null || true
+    systemctl disable gerenciador-erp.service 2>/dev/null || true
+    ;;
+esac

@@ -6,6 +6,11 @@ require 'openssl'
 require 'base64'
 require 'socket'
 require 'securerandom'
+require 'stripe'
+require 'fileutils'
+require 'json'
+
+STORAGE_DIR = File.expand_path('storage', __dir__).freeze
 
 # Chave pública Ed25519 — usada para verificar tokens assinados.
 # A chave privada fica apenas com o desenvolvedor (chave_privada.pem, gitignored).
@@ -36,6 +41,7 @@ require_relative 'app/models/user'
 require_relative 'app/models/audit_log'
 require_relative 'app/models/import'
 require_relative 'app/models/license'
+require_relative 'app/models/subscription'
 
 # ─── Configuração ─────────────────────────────────────────────────────────────
 configure do
@@ -45,6 +51,16 @@ configure do
   set :session_secret, ENV.fetch('SESSION_SECRET', SecureRandom.hex(64))
   set :bind, ENV.fetch('APP_HOST', '0.0.0.0')
   set :port, ENV.fetch('APP_PORT', 4568).to_i
+  set :host_authorization, ->() do
+    {
+      permitted_hosts: [
+        'localhost',
+        '127.0.0.1',
+        '::1',
+        ENV.fetch('ALLOWED_HOST', 'servidoresdesktop.tail313560.ts.net')
+      ]
+    }
+  end
 end
 
 # ─── Services ──────────────────────────────────────────────────────────────────
@@ -53,6 +69,7 @@ require_relative 'app/services/inventory/remove_stock_service'
 require_relative 'app/services/inventory/adjust_stock_service'
 require_relative 'app/services/backups/json_backup_service'
 require_relative 'app/services/license/google_sheet_validator'
+require_relative 'app/services/email_service'
 
 # ─── Schedulers ───────────────────────────────────────────────────────────────
 require_relative 'app/lib/backup_scheduler'
@@ -62,6 +79,15 @@ require_relative 'app/lib/license_scheduler'
 LicenseScheduler.start!
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
+def calculate_expiry(plan, interval)
+  case interval
+  when 'monthly' then Time.now.to_i + 30 * 86400
+  when 'semiannual' then Time.now.to_i + 180 * 86400
+  when 'lifetime' then Time.now.to_i + 100 * 365 * 86400
+  else Time.now.to_i + 30 * 86400
+  end
+end
+
 helpers do
   def h(text)
     Rack::Utils.escape_html(text.to_s)
@@ -326,6 +352,13 @@ before do
   pass if request.path_info == '/license'
   pass if request.path_info.start_with?('/public')
   pass if request.path_info.start_with?('/login')
+  pass if request.path_info.start_with?('/webhooks')
+  pass if request.path_info == '/stripe'
+  pass if request.path_info.start_with?('/plans')
+  pass if request.path_info.start_with?('/checkout')
+  pass if request.path_info.start_with?('/payment')
+  pass if request.path_info == '/success'
+  pass if request.path_info.start_with?('/receipts')
 
   token = read_license_token
 
@@ -404,3 +437,12 @@ require_relative 'app/controllers/backups_controller'
 require_relative 'app/controllers/audit_controller'
 require_relative 'app/controllers/import_controller'
 require_relative 'app/controllers/licenses_controller'
+require_relative 'app/controllers/payments_controller'
+require_relative 'app/controllers/webhooks_controller'
+
+# ─── Rota para servir comprovantes ──────────────────────────────────────────
+get '/receipts/:filename' do
+  file = File.join(STORAGE_DIR, 'receipts', params[:filename])
+  halt 404, 'Arquivo não encontrado' unless File.exist?(file)
+  send_file file
+end

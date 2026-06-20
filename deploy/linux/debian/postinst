@@ -1,0 +1,305 @@
+#!/bin/bash
+set -e
+
+case "$1" in
+  configure)
+    PKG_NAME="gerenciador-erp"
+    APP_DIR="/usr/share/$PKG_NAME"
+    ETC_DIR="/etc/$PKG_NAME"
+    LOG_DIR="/var/log/$PKG_NAME"
+    DATA_DIR="/var/lib/$PKG_NAME"
+    BACKUP_DIR="$DATA_DIR/backups"
+    STORAGE_DIR="$DATA_DIR/storage"
+    DB_USER="gerenciador_erp"
+    DB_NAME="gerenciador_estoque"
+    APP_USER="$PKG_NAME"
+    APP_PORT="${APP_PORT:-4568}"
+    CADDY_DIR="$APP_DIR/caddy"
+    CADDYFILE_DIR="$ETC_DIR/caddy"
+    CADDY_DATA_DIR="$DATA_DIR/caddy"
+
+    echo ">>> Configurando $PKG_NAME..."
+
+    # ─── 0. PostgreSQL rodando? ──────────────────────────────────────────────
+    if command -v pg_isready &>/dev/null && ! pg_isready -q 2>/dev/null; then
+      echo "  ⚠ PostgreSQL não está rodando. Tentando iniciar..."
+      systemctl start postgresql 2>/dev/null || service postgresql start 2>/dev/null || true
+      sleep 2
+      if ! pg_isready -q 2>/dev/null; then
+        echo "  ❌ PostgreSQL não pôde ser iniciado."
+        echo "  Execute manualmente e depois rode: dpkg --configure -a"
+        exit 1
+      fi
+      echo "  ✓ PostgreSQL iniciado"
+    fi
+
+    # ─── 1. Usuário de sistema ──────────────────────────────────────────────
+    if ! id -u "$APP_USER" &>/dev/null; then
+      adduser --system --group --no-create-home --quiet "$APP_USER"
+      echo "  ✓ Usuário $APP_USER criado"
+    else
+      echo "  ✓ Usuário $APP_USER já existe"
+    fi
+
+    # ─── 2. Diretórios ──────────────────────────────────────────────────────
+    mkdir -p "$ETC_DIR" "$LOG_DIR" "$BACKUP_DIR" "$STORAGE_DIR" "$CADDYFILE_DIR" "$CADDY_DATA_DIR"
+    echo "  ✓ Diretórios criados"
+
+    # ─── 3. .env ────────────────────────────────────────────────────────────
+    if [ ! -f "$ETC_DIR/.env" ]; then
+      DB_PASS=$(openssl rand -base64 12)
+      SESSION_SECRET=$(openssl rand -hex 32)
+
+      cat > "$ETC_DIR/.env" <<EOF
+# ── PostgreSQL ─────────────────────────────────────────────────────────────────
+DB_HOST=127.0.0.1
+DB_PORT=5432
+DB_NAME=$DB_NAME
+DB_USER=$DB_USER
+DB_PASSWORD=$DB_PASS
+
+# ── Sessão ─────────────────────────────────────────────────────────────────────
+SESSION_SECRET=$SESSION_SECRET
+
+# ── Servidor interno (Sinatra/Puma) ────────────────────────────────────────────
+APP_HOST=127.0.0.1
+APP_PORT=$APP_PORT
+APP_ENV=production
+
+# ── Licença ───────────────────────────────────────────────────────────────────
+# Token de licença HMAC. Se vazio, o sistema roda como FREE.
+LICENSE_TOKEN=
+
+# ── Google Sheets (Licenciamento online) ──────────────────────────────────────
+GOOGLE_SHEET_ID=1ABLBsqkRkdnF_yNZByUyqJsIqXzwZJdMWwr6_TGv944
+GOOGLE_SHEET_CREDENTIALS=/etc/gerenciador-erp/chave-google-sheets.json
+
+# ── Domínio público (para HTTPS via Caddy) ─────────────────────────────────────
+APP_DOMAIN=
+
+# ── Backup automático ──────────────────────────────────────────────────────────
+BACKUP_TIME=23:00
+BACKUP_DIR=$BACKUP_DIR
+BACKUP_RETENTION_DAYS=30
+EOF
+      echo "  ✓ $ETC_DIR/.env criado com senhas aleatórias"
+    else
+      echo "  ✓ $ETC_DIR/.env já existe (preservado)"
+      DB_PASS=$(grep '^DB_PASSWORD=' "$ETC_DIR/.env" | sed 's/^DB_PASSWORD=//')
+    fi
+
+    # ─── 3b. Adicionar variáveis Google Sheets se ausentes ─────────────────
+    if ! grep -q '^GOOGLE_SHEET_ID=' "$ETC_DIR/.env" 2>/dev/null; then
+      cat >> "$ETC_DIR/.env" <<'GS EOF'
+
+# ── Google Sheets (Licenciamento online) ──────────────────────────────────────
+GOOGLE_SHEET_ID=1ABLBsqkRkdnF_yNZByUyqJsIqXzwZJdMWwr6_TGv944
+GOOGLE_SHEET_CREDENTIALS=/etc/gerenciador-erp/chave-google-sheets.json
+GS EOF
+      echo "  ✓ Variáveis Google Sheets adicionadas ao .env"
+    fi
+
+    # Extrair porta atual do .env
+    APP_PORT=$(grep '^APP_PORT=' "$ETC_DIR/.env" | sed 's/^APP_PORT=//' || echo "4568")
+
+    # ─── 4. Verificar conflito de porta ─────────────────────────────────────
+    echo "  Verificando porta $APP_PORT..."
+    if ss -tlnp "sport = :$APP_PORT" 2>/dev/null | grep -q LISTEN; then
+      PID=$(ss -tlnp "sport = :$APP_PORT" 2>/dev/null | sed -n 's/.*pid=\([0-9]*\).*/\1/p')
+      if [ -n "$PID" ]; then
+        echo "  ⚠ Porta $APP_PORT ocupada (PID=$PID). Tentando liberar..."
+        if command -v fuser &>/dev/null; then
+          fuser -k "${APP_PORT}/tcp" 2>/dev/null || true
+        else
+          kill -9 "$PID" 2>/dev/null || true
+        fi
+        sleep 1
+        if ss -tlnp "sport = :$APP_PORT" 2>/dev/null | grep -q LISTEN; then
+          echo "  ⚠ Não foi possível liberar a porta $APP_PORT. Buscando alternativa..."
+        else
+          echo "  ✓ Porta $APP_PORT liberada"
+        fi
+      else
+        echo "  ⚠ Porta $APP_PORT ocupada (PID não identificado). Buscando alternativa..."
+      fi
+      # Se ainda ocupada ou PID não identificado, busca alternativa
+      if ss -tlnp "sport = :$APP_PORT" 2>/dev/null | grep -q LISTEN; then
+        for port in {4568..4599} {8080..8099} {3000..3099}; do
+          if ! ss -tlnp "sport = :$port" 2>/dev/null | grep -q LISTEN; then
+            sed -i "s/^APP_PORT=.*/APP_PORT=$port/" "$ETC_DIR/.env"
+            APP_PORT=$port
+            echo "  ✓ Porta alterada para $port"
+            break
+          fi
+        done
+      fi
+    fi
+
+    # ─── 5. Permissões ──────────────────────────────────────────────────────
+    chown -R "$APP_USER:$APP_USER" "$ETC_DIR" "$LOG_DIR" "$DATA_DIR"
+    chmod 640 "$ETC_DIR/.env"
+    echo "  ✓ Permissões ajustadas"
+
+    # ─── 6. Usuário PostgreSQL ──────────────────────────────────────────────
+    if sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" | grep -q 1; then
+      echo "  ✓ Usuário PostgreSQL $DB_USER já existe"
+    else
+      sudo -u postgres createuser --no-superuser --no-createrole --createdb "$DB_USER"
+      echo "  ✓ Usuário PostgreSQL $DB_USER criado"
+    fi
+
+    # ─── 7. Senha PostgreSQL ────────────────────────────────────────────────
+    sudo -u postgres psql -c "ALTER USER $DB_USER PASSWORD '$DB_PASS';" >/dev/null 2>&1
+
+    # ─── 8. Banco de dados ──────────────────────────────────────────────────
+    if sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" | grep -q 1; then
+      echo "  ✓ Banco $DB_NAME já existe"
+    else
+      sudo -u postgres createdb --owner="$DB_USER" "$DB_NAME"
+      echo "  ✓ Banco $DB_NAME criado"
+    fi
+
+    # ─── 9. Garantir permissões no banco e schema ──────────────────────────
+    sudo -u postgres psql -d postgres -c "ALTER DATABASE \"$DB_NAME\" OWNER TO \"$DB_USER\"" 2>/dev/null
+    sudo -u postgres psql -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE \"$DB_NAME\" TO \"$DB_USER\"" 2>/dev/null
+
+    sudo -u postgres psql -d "$DB_NAME" -c "
+      CREATE SCHEMA IF NOT EXISTS public;
+      GRANT ALL ON SCHEMA public TO \"$DB_USER\";
+      GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO \"$DB_USER\";
+      GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO \"$DB_USER\";
+      ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO \"$DB_USER\";
+      ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO \"$DB_USER\";
+    " 2>/dev/null
+    echo "  ✓ Permissões de banco e schema garantidas"
+
+    # ─── 10. Schema/seed ────────────────────────────────────────────────────
+    echo ">>> Executando db/setup.rb..."
+    cd "$APP_DIR"
+    SETUP_LOG="$LOG_DIR/setup.log"
+    if sudo -u "$APP_USER" DB_PASSWORD="$DB_PASS" bundle exec ruby db/setup.rb >"$SETUP_LOG" 2>&1; then
+      echo "  ✓ Schema e seed executados"
+    else
+      echo "  ❌ Falha ao executar db/setup.rb"
+      echo "     Log: $SETUP_LOG"
+      tail -20 "$SETUP_LOG" 2>/dev/null | sed 's/^/     /'
+      echo "  Tente manualmente: cd $APP_DIR && sudo -u $APP_USER bundle exec ruby db/setup.rb"
+      exit 1
+    fi
+
+    # ─── 11. Detectar bundle path e atualizar service ──────────────────────
+    BUNDLE_PATH=$(command -v bundle || true)
+    if [ -z "$BUNDLE_PATH" ]; then
+      echo "  ❌ Bundler não encontrado. Instale: apt install bundler"
+      exit 1
+    fi
+    echo "  ✓ Bundler encontrado: $BUNDLE_PATH"
+
+    # ─── 12. Corrigir service file com bundle path ─────────────────────────
+    if [ -f /lib/systemd/system/$PKG_NAME.service ]; then
+      sed -i "s|__BUNDLE_PATH__|$BUNDLE_PATH|g" /lib/systemd/system/$PKG_NAME.service
+      echo "  ✓ Service file atualizado com caminho do bundler"
+    fi
+
+    # ─── 13. Configurar Caddy ──────────────────────────────────────────────
+    echo ">>> Configurando proxy HTTPS (Caddy)..."
+    mkdir -p "$CADDY_DATA_DIR" "$CADDYFILE_DIR"
+
+    APP_PORT=$(grep '^APP_PORT=' "$ETC_DIR/.env" | sed 's/^APP_PORT=//' || echo "4568")
+    APP_DOMAIN=$(grep '^APP_DOMAIN=' "$ETC_DIR/.env" | sed 's/^APP_DOMAIN=//' || echo "")
+
+    if [ -n "$APP_DOMAIN" ]; then
+      cat > "$CADDYFILE_DIR/Caddyfile" << EOF
+$APP_DOMAIN {
+    reverse_proxy 127.0.0.1:$APP_PORT
+}
+http://$APP_DOMAIN {
+    redir https://{host}{uri} permanent
+}
+EOF
+    else
+      cat > "$CADDYFILE_DIR/Caddyfile" << EOF
+:80 {
+    redir https://{host}{uri} permanent
+}
+:443 {
+    tls internal
+    reverse_proxy 127.0.0.1:$APP_PORT
+}
+EOF
+    fi
+
+    chown "$APP_USER:$APP_USER" "$CADDYFILE_DIR/Caddyfile" "$CADDY_DATA_DIR"
+    chmod 644 "$CADDYFILE_DIR/Caddyfile"
+    echo "  ✓ Caddyfile gerado em $CADDYFILE_DIR/Caddyfile"
+
+    if [ -f "$CADDY_DIR/caddy" ]; then
+      chmod 755 "$CADDY_DIR/caddy"
+      echo "  ✓ Binário Caddy encontrado em $CADDY_DIR/caddy"
+    fi
+
+    # ─── 14. Ativar serviços systemd ───────────────────────────────────────
+    echo ">>> Ativando serviços..."
+    systemctl daemon-reload
+
+    # Serviço da aplicação
+    systemctl enable "$PKG_NAME.service" 2>/dev/null
+
+    # Serviço Caddy (se o binário existir)
+    if [ -f "$CADDY_DIR/caddy" ] && [ -f /lib/systemd/system/$PKG_NAME-caddy.service ]; then
+      systemctl enable "$PKG_NAME-caddy.service" 2>/dev/null
+    fi
+
+    # Iniciar app primeiro, depois Caddy
+    if systemctl start "$PKG_NAME.service" 2>/dev/null; then
+      echo "  ✓ Serviço da aplicação iniciado"
+      sleep 1
+      if [ -f "$CADDY_DIR/caddy" ]; then
+        if systemctl start "$PKG_NAME-caddy.service" 2>/dev/null; then
+          echo "  ✓ Serviço Caddy (HTTPS) iniciado"
+        else
+          echo "  ⚠ Caddy não iniciou (portas 80/443 ocupadas?)"
+          echo "    Verifique: journalctl -u $PKG_NAME-caddy"
+        fi
+      fi
+    else
+      echo "  ⚠ Serviço da aplicação não iniciou"
+      echo "  Verifique: journalctl -u $PKG_NAME"
+    fi
+
+    # ─── Resumo ────────────────────────────────────────────────────────────
+    APP_DOMAIN=$(grep '^APP_DOMAIN=' "$ETC_DIR/.env" | sed 's/^APP_DOMAIN=//' || echo "")
+    if [ -n "$APP_DOMAIN" ]; then
+      ACCESS_URL="https://$APP_DOMAIN"
+    else
+      ACCESS_URL="https://localhost (certificado auto-assinado)"
+    fi
+
+    echo ""
+    echo "╔══════════════════════════════════════════════════════════════╗"
+    echo "║             INSTALAÇÃO CONCLUÍDA!                          ║"
+    echo "╚══════════════════════════════════════════════════════════════╝"
+    echo ""
+    echo "   📍 Acesse:    $ACCESS_URL"
+    echo "   👤 Login:     admin@gerenciador.local"
+    echo "   🔑 Senha:     admin123"
+    echo ""
+    echo "   ⚙ Config:     $ETC_DIR/.env"
+    echo "   📋 Logs app:  journalctl -u $PKG_NAME"
+    echo "   📋 Logs ssl:  journalctl -u ${PKG_NAME}-caddy"
+    echo "   ❌ Remover:   sudo apt remove $PKG_NAME"
+    echo ""
+    echo "   💡 Para usar domínio próprio:"
+    echo "      edite $ETC_DIR/.env, defina APP_DOMAIN=seu dominio"
+    echo "      e reinicie: systemctl restart ${PKG_NAME}-caddy"
+    ;;
+
+  abort-upgrade|abort-remove|abort-deconfigure)
+    exit 0
+    ;;
+
+  *)
+    echo "postinst chamado com argumento desconhecido: $1" >&2
+    exit 1
+    ;;
+esac

@@ -1,0 +1,66 @@
+#!/bin/bash
+set -e
+
+PKG_NAME="gerenciador-erp"
+DB_USER="gerenciador_erp"
+DB_NAME="gerenciador_estoque"
+
+case "$1" in
+  remove)
+    echo ">>> Removendo $PKG_NAME (binários)..."
+    echo "  ✓ Binários removidos pelo dpkg"
+    echo "  (configurações preservadas em /etc/$PKG_NAME/)"
+    echo "  (logs e dados preservados em /var/log/$PKG_NAME/ e /var/lib/$PKG_NAME/)"
+    echo "  Execute 'sudo apt purge $PKG_NAME' para remoção completa."
+    ;;
+
+  purge)
+    echo ">>> Removendo completamente $PKG_NAME (purge)..."
+
+    # Parar serviços
+    systemctl stop "$PKG_NAME-caddy.service" 2>/dev/null || true
+    systemctl stop "$PKG_NAME.service" 2>/dev/null || true
+    systemctl disable "$PKG_NAME-caddy.service" 2>/dev/null || true
+    systemctl disable "$PKG_NAME.service" 2>/dev/null || true
+
+    # Remover usuário de sistema
+    if id -u "$PKG_NAME" &>/dev/null; then
+      userdel -r "$PKG_NAME" 2>/dev/null || true
+      echo "  ✓ Usuário $PKG_NAME removido"
+    fi
+
+    # Remover diretórios
+    rm -rf /etc/$PKG_NAME
+    rm -rf /var/log/$PKG_NAME
+    rm -rf /var/lib/$PKG_NAME
+
+    # Remover atalho, ícone e logrotate
+    rm -f /usr/share/applications/$PKG_NAME.desktop 2>/dev/null || true
+    rm -f /usr/share/icons/hicolor/scalable/apps/$PKG_NAME.svg 2>/dev/null || true
+    rm -f /etc/logrotate.d/$PKG_NAME 2>/dev/null || true
+
+    # Remover serviços systemd
+    rm -f /lib/systemd/system/$PKG_NAME.service 2>/dev/null || true
+    rm -f /etc/systemd/system/$PKG_NAME.service 2>/dev/null || true
+    rm -f /lib/systemd/system/$PKG_NAME-caddy.service 2>/dev/null || true
+    rm -f /etc/systemd/system/$PKG_NAME-caddy.service 2>/dev/null || true
+    systemctl daemon-reload 2>/dev/null || true
+
+    echo ""
+    echo "  ℹ Banco PostgreSQL '$DB_NAME' e usuário '$DB_USER' foram preservados."
+    echo "  Para removê-los manualmente:"
+    echo "    sudo -u postgres dropdb $DB_NAME"
+    echo "    sudo -u postgres dropuser $DB_USER"
+    echo ""
+    echo "  ✓ Remoção completa concluída"
+    ;;
+
+  upgrade|failed-upgrade)
+    exit 0
+    ;;
+
+  *)
+    echo "postrm chamado com argumento desconhecido: $1" >&2
+    exit 1
+    ;;
+esac

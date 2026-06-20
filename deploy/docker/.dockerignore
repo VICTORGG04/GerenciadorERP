@@ -1,0 +1,12 @@
+.git/
+.gitignore
+.bundle/
+vendor/
+log/
+storage/
+deploy/
+certs/GerarLicenca.rb
+GerenciadorERP-Android/
+.idea/
+*.log
+*.md

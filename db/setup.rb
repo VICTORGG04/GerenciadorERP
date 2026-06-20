@@ -167,6 +167,30 @@ CREATE TABLE IF NOT EXISTS licenses (
 );
 SQL
 
+# =========================
+# SUBSCRIPTIONS (Stripe)
+# =========================
+DB.exec <<~SQL
+CREATE TABLE IF NOT EXISTS subscriptions (
+    id SERIAL PRIMARY KEY,
+    license_id INTEGER REFERENCES licenses(id),
+    stripe_subscription_id VARCHAR(255),
+    stripe_customer_id VARCHAR(255) NOT NULL,
+    stripe_session_id VARCHAR(255),
+    plan VARCHAR(20) NOT NULL,
+    interval VARCHAR(20) NOT NULL,
+    status VARCHAR(50) DEFAULT 'active',
+    license_token TEXT,
+    current_period_start TIMESTAMP,
+    current_period_end TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+SQL
+
+# Migration para adicionar license_token se já existir tabela
+DB.exec("ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS license_token TEXT;") rescue nil
+
 puts "Tabelas criadas!"
 
 # =========================

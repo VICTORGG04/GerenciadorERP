@@ -1,0 +1,216 @@
+<style>
+  .plan-current {
+    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+    border-radius: 12px;
+    padding: 24px 32px;
+    margin-bottom: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .plan-current-info { color: #e2e8f0; }
+  .plan-current-info h2 {
+    font-size: 18px; font-weight: 700; margin: 0;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .plan-current-info h2 .dot {
+    display: inline-block; width: 10px; height: 10px;
+    border-radius: 50%; margin-right: 4px;
+  }
+  .plan-current-info h2 .dot.gold { background: #f59e0b; }
+  .plan-current-info h2 .dot.platinum { background: #94a3b8; }
+  .plan-current-info h2 .dot.enterprise { background: #6366f1; }
+  .plan-current-info h2 .dot.free { background: #22c55e; }
+  .plan-current-info .sub {
+    font-size: 13px; color: #94a3b8; margin-top: 4px;
+  }
+  .plan-current-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .plan-current-actions .btn {
+    padding: 8px 20px; border-radius: 8px;
+    font-size: 13px; font-weight: 600; text-decoration: none;
+    transition: all .2s;
+  }
+  .btn-outline {
+    background: transparent; color: #e2e8f0;
+    border: 1.5px solid #475569;
+  }
+  .btn-outline:hover { background: #475569; color: #fff; }
+
+  .plans-grid {
+    display: flex; gap: 20px;
+    justify-content: center; flex-wrap: wrap;
+    margin: 0 -4px;
+  }
+  .plan-card {
+    background: #fff;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 24px;
+    width: 300px;
+    display: flex;
+    flex-direction: column;
+    transition: all .2s;
+    position: relative;
+  }
+  .plan-card:hover {
+    border-color: #6366f1;
+    box-shadow: 0 4px 16px rgba(99,102,241,.12);
+  }
+  .plan-card.is-current {
+    border-color: #22c55e;
+    box-shadow: 0 0 0 2px rgba(34,197,94,.2);
+  }
+  .plan-card .plan-badge {
+    position: absolute; top: -10px; right: 16px;
+    background: #22c55e; color: #fff;
+    padding: 2px 12px; border-radius: 12px;
+    font-size: 11px; font-weight: 700;
+  }
+  .plan-card h3 {
+    font-size: 20px; font-weight: 700; color: #1e293b;
+    text-align: center; margin: 0;
+  }
+  .plan-card .plan-sub {
+    font-size: 13px; color: #64748b;
+    text-align: center; margin: 4px 0 16px;
+  }
+  .plan-card .plan-features {
+    list-style: none; padding: 0; margin: 0 0 20px;
+    flex: 1;
+  }
+  .plan-card .plan-features li {
+    padding: 6px 0; font-size: 13px; color: #475569;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .plan-card .plan-features li::before { content: '✓ '; color: #22c55e; font-weight: 700; }
+  .plan-card .plan-prices { margin-bottom: 16px; }
+  .plan-card .plan-prices label {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 12px; border-radius: 6px; cursor: pointer;
+    transition: background .2s; margin-bottom: 2px;
+  }
+  .plan-card .plan-prices label:hover {
+    background: #eef2ff;
+  }
+  .plan-card .plan-prices label.selected {
+    background: #6366f1;
+    color: #fff;
+    border-radius: 8px;
+  }
+  .plan-card .plan-prices label.selected .interval {
+    color: #c7d2fe;
+  }
+  .plan-card .plan-prices label.selected .amount {
+    color: #fff;
+  }
+  .plan-card .plan-prices label.selected .amount small {
+    color: #c7d2fe;
+  }
+  .plan-card .plan-prices input { display: none; }
+  .plan-card .plan-prices .interval { font-size: 13px; color: #475569; }
+  .plan-card .plan-prices .amount { font-size: 16px; font-weight: 700; color: #1e293b; }
+  .plan-card .plan-prices .amount small { font-size: 11px; font-weight: 400; color: #94a3b8; }
+  .plan-card .btn-plan {
+    width: 100%; padding: 10px;
+    border: none; border-radius: 8px;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    transition: all .2s;
+  }
+  .plan-card .btn-plan:not(:disabled) { background: #6366f1; color: #fff; }
+  .plan-card .btn-plan:not(:disabled):hover { background: #4f46e5; }
+  .plan-card .btn-plan:disabled { background: #cbd5e1; cursor: not-allowed; }
+  .plan-card .btn-plan.current-plan-btn {
+    background: #22c55e; color: #fff; cursor: default;
+  }
+  .plan-card.featured {
+    border-color: #f59e0b;
+    border-width: 2px;
+  }
+  .plan-card.featured .featured-badge {
+    position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+    background: #f59e0b; color: #fff;
+    padding: 2px 16px; border-radius: 20px;
+    font-size: 11px; font-weight: 700;
+    white-space: nowrap;
+  }
+</style>
+
+<div class="plan-current">
+  <div class="plan-current-info">
+    <h2>
+      <span class="dot <%= @current_plan_id %>"></span>
+      <%= @current_plan_name %>
+      <% if @current_plan_id == 'free' %>
+        <span style="font-size:12px;font-weight:400;color:#94a3b8;">(Trial 30 dias)</span>
+      <% end %>
+    </h2>
+    <div class="sub">
+      <% if @current_holder %><%= h(@current_holder) %> · <% end %>
+      <% if @current_expires %>Expira em <%= @current_expires.strftime('%d/%m/%Y') rescue @current_expires %><% end %>
+      <% if @current_plan_id == 'free' %> · 20 produtos, 1 usuário<% end %>
+    </div>
+  </div>
+  <div class="plan-current-actions">
+    <a href="/license" class="btn btn-outline">Alterar Token</a>
+  </div>
+</div>
+
+<div class="plans-grid">
+  <% @plans.each do |plan| %>
+    <div class="plan-card<%= ' featured' if plan[:highlight] %><%= ' is-current' if plan[:id] == @current_plan_id %>">
+      <% if plan[:highlight] %><div class="featured-badge">Mais Popular</div><% end %>
+      <% if plan[:id] == @current_plan_id %><div class="plan-badge">Seu Plano</div><% end %>
+      <h3><%= plan[:name] %></h3>
+      <p class="plan-sub">
+        <%= plan[:products].is_a?(Integer) ? "Até #{plan[:products]} produtos" : "#{plan[:products]} produtos" %>
+        · <%= plan[:users].is_a?(Integer) ? "#{plan[:users]} usuários" : "#{plan[:users]} usuários" %>
+      </p>
+      <ul class="plan-features">
+        <li><%= plan[:products].is_a?(Integer) ? "Até #{plan[:products]} produtos" : "#{plan[:products]} produtos" %></li>
+        <li><%= plan[:users].is_a?(Integer) ? "Até #{plan[:users]} usuários" : "#{plan[:users]} usuários" %></li>
+        <li>Suporte prioritário</li>
+        <% if plan[:whitelabel] %><li>Whitelabel</li><% end %>
+        <% if plan[:source] %><li>Código fonte incluso</li><% end %>
+      </ul>
+      <% if plan[:id] == @current_plan_id %>
+        <button class="btn-plan current-plan-btn" disabled>Plano Atual</button>
+      <% else %>
+        <form method="post" action="/checkout" class="plan-prices">
+          <input type="hidden" name="plan" value="<%= plan[:id] %>">
+          <label>
+            <input type="radio" name="interval" value="monthly" required>
+            <span class="interval">Mensal</span>
+            <span class="amount">R$ <%= plan[:price_monthly] %><small>/mês</small></span>
+          </label>
+          <label>
+            <input type="radio" name="interval" value="semiannual">
+            <span class="interval">Semestral</span>
+            <span class="amount">R$ <%= plan[:price_semiannual] %><small>/sem</small></span>
+          </label>
+          <label>
+            <input type="radio" name="interval" value="lifetime">
+            <span class="interval">Vitalício</span>
+            <span class="amount">R$ <%= plan[:price_lifetime] %></span>
+          </label>
+          <button class="btn-plan" type="submit" disabled>Assinar</button>
+        </form>
+      <% end %>
+    </div>
+  <% end %>
+</div>
+
+<script>
+  document.querySelectorAll('.plan-prices').forEach(form => {
+    const radios = form.querySelectorAll('input[type="radio"]');
+    const btn = form.querySelector('.btn-plan');
+    radios.forEach(r => {
+      r.addEventListener('change', () => {
+        radios.forEach(rr => rr.closest('label').classList.remove('selected'));
+        if (r.checked) r.closest('label').classList.add('selected');
+        btn.disabled = false;
+      });
+    });
+  });
+</script>

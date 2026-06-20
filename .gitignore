@@ -30,6 +30,9 @@ chave-google-sheets.json
 /storage/machine_id
 /storage/license_cache.json
 
+# ── IDE ────────────────────────────────────────────────────────────────────────
+.idea/
+
 # ── Empacotamento ──────────────────────────────────────────────────────────────
 *.deb
 .~lock.*

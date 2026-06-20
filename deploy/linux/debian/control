@@ -1,0 +1,11 @@
+Package: gerenciador-erp
+Version: 1.0.0
+Section: web
+Priority: optional
+Architecture: all
+Depends: ruby (>= 3.2), bundler, postgresql (>= 16), libpq-dev, openssl
+Maintainer: Gerenciador ERP <admin@gerenciador.local>
+Description: ERP de Gerenciamento de Estoque
+ Sistema web para controle de estoque, vendas,
+ categorias, relatorios e backups com autenticacao
+ de usuarios e backups automaticos.

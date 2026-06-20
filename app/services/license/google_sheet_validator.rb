@@ -6,7 +6,7 @@ require 'fileutils'
 require 'open3'
 
 class GoogleSheetValidator
-  COLUMNS = %w[token cnpj company plan expires status machine_id hostname ip activated_at address_street address_number address_complement address_neighborhood address_city address_state address_zip contact_name contact_email contact_phone notes].freeze
+  COLUMNS = %w[token cnpj company plan payment expires status machine_id hostname ip activated_at address_street address_number address_complement address_neighborhood address_city address_state address_zip contact_name contact_email contact_phone notes].freeze
 
   SHEET_ID         = ENV['GOOGLE_SHEET_ID']
   CREDENTIALS_PATH = ENV['GOOGLE_SHEET_CREDENTIALS']
@@ -113,6 +113,44 @@ class GoogleSheetValidator
       end
     rescue => e
       log("[GoogleSheetValidator] Erro ao registrar trial: #{e.message}")
+      false
+    end
+
+    def update_payment_status!(token, status)
+      unless SHEET_ID && CREDENTIALS_PATH
+        log("[GoogleSheetValidator] update_payment: Variáveis de ambiente ausentes")
+        return false
+      end
+
+      result = call_python('update_payment', { token: token, status: status })
+      if result['success']
+        log("[GoogleSheetValidator] Pagamento atualizado: #{token} -> #{status}")
+        true
+      else
+        log("[GoogleSheetValidator] Erro ao atualizar pagamento: #{result['error']}")
+        false
+      end
+    rescue => e
+      log("[GoogleSheetValidator] Erro ao atualizar pagamento: #{e.message}")
+      false
+    end
+
+    def update_status!(token, new_status)
+      unless SHEET_ID && CREDENTIALS_PATH
+        log("[GoogleSheetValidator] update_status: Variáveis de ambiente ausentes")
+        return false
+      end
+
+      result = call_python('update_status', { token: token, status: new_status })
+      if result['success']
+        log("[GoogleSheetValidator] Status atualizado: #{token} -> #{new_status}")
+        true
+      else
+        log("[GoogleSheetValidator] Erro ao atualizar status: #{result['error']}")
+        false
+      end
+    rescue => e
+      log("[GoogleSheetValidator] Erro ao atualizar status: #{e.message}")
       false
     end
 
