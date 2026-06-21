@@ -5,6 +5,7 @@ require 'bcrypt'
 require 'openssl'
 require 'base64'
 require 'socket'
+require 'ipaddr'
 require 'securerandom'
 require 'stripe'
 require 'fileutils'
@@ -58,7 +59,11 @@ configure do
         '127.0.0.1',
         '::1',
         ENV.fetch('ALLOWED_HOST', 'servidoresdesktop.tail313560.ts.net')
-      ]
+      ],
+      allow_if: ->(env) {
+        host = Rack::Request.new(env).host
+        IPAddr.new(host) rescue false
+      }
     }
   end
 end
