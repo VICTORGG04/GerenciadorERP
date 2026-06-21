@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash VARCHAR(255) NOT NULL,
     role VARCHAR(50) DEFAULT 'operator',
     active BOOLEAN DEFAULT TRUE,
+    plan VARCHAR(50) DEFAULT 'free',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 SQL
@@ -190,6 +191,9 @@ SQL
 
 # Migration para adicionar license_token se já existir tabela
 DB.exec("ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS license_token TEXT;") rescue nil
+
+# Migration para adicionar colunas que podem faltar em tabelas existentes
+DB.exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS plan VARCHAR(50) DEFAULT 'free';") rescue nil
 
 puts "Tabelas criadas!"
 

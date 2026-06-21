@@ -63,6 +63,71 @@ post '/login' do
   end
 end
 
+# ── Registro de nova conta ────────────────────────────────────────
+get '/register' do
+  redirect '/' if current_user
+  erb :register, layout: false
+end
+
+post '/register' do
+  redirect '/' if current_user
+
+  # ── Validações ──────────────────────────────────────────────────
+  if params[:name].to_s.strip.empty?
+    @error = 'O nome não pode estar em branco.'
+    return erb(:register, layout: false)
+  end
+
+  unless params[:email] =~ /\A[^@\s]+@[^@\s]+\.[^@\s]+\z/
+    @error = 'E-mail inválido.'
+    return erb(:register, layout: false)
+  end
+
+  if params[:password].to_s.length < 6
+    @error = 'A senha deve ter pelo menos 6 caracteres.'
+    return erb(:register, layout: false)
+  end
+
+  if params[:password] != params[:password_confirm]
+    @error = 'As senhas não coincidem.'
+    return erb(:register, layout: false)
+  end
+
+  # ── Criação (conta free independente) ────────────────────────────
+  plan = 'free'
+  hash = BCrypt::Password.create(params[:password], cost: 12)
+
+  begin
+    DB.exec_params(
+      "INSERT INTO users (name, email, password_hash, role, plan) VALUES ($1, $2, $3, $4, $5)",
+      [params[:name].strip, params[:email].strip.downcase, hash, 'operator', plan]
+    )
+  rescue PG::UniqueViolation
+    @error = 'Este e-mail já está cadastrado.'
+    return erb(:register, layout: false)
+  end
+
+  # ── Salvar na planilha (opcional, não bloqueante) ───────────────
+  GoogleSheetValidator.register_user!(
+    nome:    params[:name].strip,
+    email:   params[:email].strip.downcase,
+    senha:   hash,
+    funcao:  'operator',
+    plano:   plan
+  )
+
+  # ── Auto-login ──────────────────────────────────────────────────
+  user = User.authenticate(params[:email], params[:password])
+  if user
+    session[:user_id]   = user.id
+    session[:user_name] = user.name
+    session[:user_role] = user.role
+  end
+
+  flash 'ok', 'Conta criada com sucesso!'
+  redirect '/'
+end
+
 get '/logout' do
   session.clear
   redirect '/login'

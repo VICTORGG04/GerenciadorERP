@@ -4,7 +4,7 @@ require 'bcrypt'
 class User
   extend BaseModel
 
-  attr_accessor :id, :name, :email, :role, :active, :created_at
+  attr_accessor :id, :name, :email, :role, :active, :plan, :created_at
 
   # Papéis disponíveis no sistema
   ROLES = {
@@ -19,6 +19,7 @@ class User
     @email      = row['email']
     @role       = row['role']
     @active     = row['active'] == 't' || row['active'] == true
+    @plan       = row['plan']
     @created_at = row['created_at']
   end
 
@@ -49,11 +50,11 @@ class User
     new(result[0])
   end
 
-  def self.create(name:, email:, password:, role: 'operator')
+  def self.create(name:, email:, password:, role: 'operator', plan: 'free')
     hash = BCrypt::Password.create(password, cost: 12)
     db.exec_params(
-      "INSERT INTO users (name, email, password_hash, role) VALUES ($1, $2, $3, $4)",
-      [name.strip, email.strip.downcase, hash, role]
+      "INSERT INTO users (name, email, password_hash, role, plan) VALUES ($1, $2, $3, $4, $5)",
+      [name.strip, email.strip.downcase, hash, role, plan]
     )
   end
 

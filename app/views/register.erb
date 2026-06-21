@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Login — GerenciadorClaude</title>
+  <title>Cadastro — GerenciadorClaude</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -14,7 +14,7 @@
       justify-content: center;
       min-height: 100vh;
     }
-    .login-box {
+    .register-box {
       background: #fff;
       border-radius: 16px;
       box-shadow: 0 4px 24px rgba(0,0,0,0.08);
@@ -50,34 +50,58 @@
       padding: 10px 14px; border-radius: 8px;
       font-size: 13px; margin-bottom: 16px;
     }
+    .login-link {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 13px;
+      color: #888;
+    }
+    .login-link a {
+      color: #6366f1;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .login-link a:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
-  <div class="login-box">
+  <div class="register-box">
     <div class="logo">
       <h1>📦 GerenciadorClaude</h1>
-      <p>Sistema de Gestão de Estoque</p>
+      <p>Criar nova conta</p>
     </div>
 
     <% if @error %>
       <div class="error">⚠ <%= h(@error) %></div>
     <% end %>
 
-    <form method="post" action="/login">
+    <form method="post" action="/register">
+      <div class="field">
+        <label>Nome</label>
+        <input type="text" name="name" required autofocus
+               placeholder="Seu nome completo"
+               value="<%= h(params[:name] || '') %>">
+      </div>
       <div class="field">
         <label>E-mail</label>
-        <input type="email" name="email" required autofocus
-               placeholder="admin@gerenciador.local">
+        <input type="email" name="email" required
+               placeholder="voce@exemplo.com"
+               value="<%= h(params[:email] || '') %>">
       </div>
       <div class="field">
         <label>Senha</label>
-        <input type="password" name="password" required placeholder="••••••••">
+        <input type="password" name="password" required placeholder="Mínimo 6 caracteres">
       </div>
-      <button class="btn" type="submit">Entrar</button>
+      <div class="field">
+        <label>Confirmar Senha</label>
+        <input type="password" name="password_confirm" required placeholder="Repita a senha">
+      </div>
+      <button class="btn" type="submit">Criar Conta</button>
     </form>
-    <p style="text-align:center;margin-top:20px;font-size:13px;color:#888">
-      Não tem conta? <a href="/register" style="color:#6366f1;font-weight:600;text-decoration:none">Cadastre-se</a>
-    </p>
+
+    <div class="login-link">
+      Já tem conta? <a href="/login">Fazer login</a>
+    </div>
   </div>
 </body>
 </html>

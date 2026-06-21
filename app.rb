@@ -169,7 +169,6 @@ helpers do
     sig = OpenSSL::HMAC.hexdigest('SHA256', LICENSE_SECRET, data)
     token = "#{data}.#{sig}"
     save_license_token!(token)
-    GoogleSheetValidator.register_free_trial!(token)
     token
   end
 
@@ -279,6 +278,7 @@ helpers do
   # Retorna true se OK, false se bloqueado, nil se sem planilha configurada
   def validate_online!
     return nil unless ENV['GOOGLE_SHEET_ID'] && ENV['GOOGLE_SHEET_CREDENTIALS']
+    return nil unless File.exist?(ENV['GOOGLE_SHEET_CREDENTIALS'].to_s)
 
     token = read_license_token
     return nil unless token
@@ -357,6 +357,7 @@ before do
   pass if request.path_info == '/license'
   pass if request.path_info.start_with?('/public')
   pass if request.path_info.start_with?('/login')
+  pass if request.path_info.start_with?('/register')
   pass if request.path_info.start_with?('/webhooks')
   pass if request.path_info == '/stripe'
   pass if request.path_info.start_with?('/plans')

@@ -20,14 +20,19 @@ SHEET_ID = os.environ.get('GOOGLE_SHEET_ID', '')
 CREDENTIALS_PATH = os.environ.get('GOOGLE_SHEET_CREDENTIALS', '')
 TAB_NAME = 'Licencas'
 TAB_CONTESTACOES = 'Contestacoes'
+TAB_CADASTROS = 'Cadastros'
 
-COLUMNS = [
+COLUNAS_LICENCA = [
     'token', 'cnpj', 'company', 'plan', 'payment', 'expires', 'status',
     'machine_id', 'hostname', 'ip', 'activated_at',
     'address_street', 'address_number', 'address_complement',
     'address_neighborhood', 'address_city', 'address_state',
     'address_zip', 'contact_name', 'contact_email', 'contact_phone',
     'notes'
+]
+
+COLUNAS_CADASTROS = [
+    'ID', 'NOME', 'EMAIL', 'SENHA', 'FUNCAO', 'ATIVO', 'PLANO', 'DATA_CADASTRO'
 ]
 
 COLUNAS_CONTESTACOES = [
@@ -137,7 +142,7 @@ def action_validate(args):
 
         row = all_values[idx]
         row_num = idx + 1
-        row_data = {COLUMNS[j]: row[j].strip() if j < len(row) else '' for j in range(len(COLUMNS))}
+        row_data = {COLUNAS_LICENCA[j]: row[j].strip() if j < len(row) else '' for j in range(len(COLUNAS_LICENCA))}
 
         status = row_data.get('status', '')
 
@@ -263,6 +268,49 @@ def action_register_free_trial(args):
         return {'success': False, 'error': f'Erro ao registrar trial: {e}'}
 
 
+def action_register_user(args):
+    nome = args.get('nome', '').strip()
+    email = args.get('email', '').strip()
+    senha = args.get('senha', '').strip()
+    funcao = args.get('funcao', 'operator').strip()
+    plano = args.get('plano', 'free').strip()
+
+    if not nome or not email or not senha:
+        return {'success': False, 'error': 'Nome, email e senha são obrigatórios'}
+
+    gc, err = get_client()
+    if err:
+        return {'success': False, 'error': err}
+    ws = get_cadastros_worksheet(gc)
+    if ws is None:
+        try:
+            spreadsheet = gc.open_by_key(SHEET_ID)
+            ws = spreadsheet.add_worksheet(title=TAB_CADASTROS, rows=100, cols=20)
+            ws.append_row(COLUNAS_CADASTROS)
+        except Exception as e:
+            return {'success': False, 'error': f'Erro ao criar aba Cadastros: {e}'}
+
+    try:
+        all_values = ws.get_all_values()
+        last_row = find_last_data_row(ws)
+
+        novo_id = last_row  # last_row is 0 if only header, 1+ if data rows
+
+        now = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+        row = [
+            str(novo_id), nome, email, senha, funcao, 'Sim', plano, now
+        ]
+
+        if last_row == 0:
+            ws.append_row(row)
+        else:
+            insert_pos = last_row + 1
+            ws.insert_row(row, index=insert_pos)
+        return {'success': True, 'id': str(novo_id)}
+    except Exception as e:
+        return {'success': False, 'error': f'Erro ao registrar usuario: {e}'}
+
+
 def action_revoke_token(args):
     token = args.get('token', '').strip()
     if not token:
@@ -370,6 +418,14 @@ def action_update_status(args):
         return {'success': False, 'error': 'Token não encontrado na planilha'}
     except Exception as e:
         return {'success': False, 'error': f'Erro ao atualizar status: {e}'}
+
+
+def get_cadastros_worksheet(gc):
+    try:
+        spreadsheet = gc.open_by_key(SHEET_ID)
+        return spreadsheet.worksheet(TAB_CADASTROS)
+    except Exception as e:
+        return None
 
 
 def get_contestacoes_worksheet(gc):
@@ -517,6 +573,7 @@ ACTIONS = {
     'register_dispute': action_register_dispute,
     'update_dispute': action_update_dispute,
     'close_dispute': action_close_dispute,
+    'register_user': action_register_user,
     'internet': action_internet,
 }
 

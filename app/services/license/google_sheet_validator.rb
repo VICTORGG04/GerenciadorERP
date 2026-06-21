@@ -116,6 +116,27 @@ class GoogleSheetValidator
       false
     end
 
+    def register_user!(nome:, email:, senha:, funcao:, plano:)
+      unless SHEET_ID && CREDENTIALS_PATH
+        log("[GoogleSheetValidator] register_user: Variáveis de ambiente ausentes")
+        return false
+      end
+
+      result = call_python('register_user', {
+        nome: nome, email: email, senha: senha,
+        funcao: funcao, plano: plano
+      })
+      if result['success']
+        true
+      else
+        log("[GoogleSheetValidator] Erro ao registrar usuario: #{result['error']}")
+        false
+      end
+    rescue => e
+      log("[GoogleSheetValidator] Erro ao registrar usuario: #{e.message}")
+      false
+    end
+
     def update_payment_status!(token, status)
       unless SHEET_ID && CREDENTIALS_PATH
         log("[GoogleSheetValidator] update_payment: Variáveis de ambiente ausentes")
