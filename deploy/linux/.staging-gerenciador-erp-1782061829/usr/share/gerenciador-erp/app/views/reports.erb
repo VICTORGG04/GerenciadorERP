@@ -1,0 +1,53 @@
+<!-- views/reports.erb -->
+<div class="page-header">
+  <h1>Relatórios</h1>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px">
+
+  <a href="/reports/movements" style="text-decoration:none">
+    <div class="card" style="text-align:center;padding:28px;cursor:pointer;transition:box-shadow .2s"
+         onmouseover="this.style.boxShadow='0 4px 20px rgba(99,102,241,.15)'"
+         onmouseout="this.style.boxShadow=''">
+      <div style="font-size:36px;margin-bottom:10px">🔄</div>
+      <div style="font-weight:700;font-size:16px;color:#1e293b">Movimentações</div>
+      <div style="font-size:13px;color:#888;margin-top:6px">
+        Entradas, saídas e ajustes por período
+      </div>
+      <div style="margin-top:14px">
+        <span class="btn btn-ghost" style="font-size:13px">Ver relatório →</span>
+      </div>
+    </div>
+  </a>
+
+  <a href="/reports/orders" style="text-decoration:none">
+    <div class="card" style="text-align:center;padding:28px;cursor:pointer;transition:box-shadow .2s"
+         onmouseover="this.style.boxShadow='0 4px 20px rgba(99,102,241,.15)'"
+         onmouseout="this.style.boxShadow=''">
+      <div style="font-size:36px;margin-bottom:10px">🛒</div>
+      <div style="font-weight:700;font-size:16px;color:#1e293b">Pedidos de Venda</div>
+      <div style="font-size:13px;color:#888;margin-top:6px">
+        Histórico e status dos pedidos
+      </div>
+      <div style="margin-top:14px">
+        <span class="btn btn-ghost" style="font-size:13px">Ver relatório →</span>
+      </div>
+    </div>
+  </a>
+
+  <a href="/reports/low_stock" style="text-decoration:none">
+    <div class="card" style="text-align:center;padding:28px;cursor:pointer;transition:box-shadow .2s"
+         onmouseover="this.style.boxShadow='0 4px 20px rgba(99,102,241,.15)'"
+         onmouseout="this.style.boxShadow=''">
+      <div style="font-size:36px;margin-bottom:10px">⚠️</div>
+      <div style="font-weight:700;font-size:16px;color:#1e293b">Estoque Mínimo</div>
+      <div style="font-size:13px;color:#888;margin-top:6px">
+        Produtos abaixo do nível mínimo
+      </div>
+      <div style="margin-top:14px">
+        <span class="btn btn-ghost" style="font-size:13px">Ver relatório →</span>
+      </div>
+    </div>
+  </a>
+
+</div>

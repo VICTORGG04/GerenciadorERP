@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pagamento Confirmado — Gerenciador ERP</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f0fdf4;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 24px;
+    }
+    .box {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(0,0,0,.08);
+      padding: 40px;
+      width: 100%;
+      max-width: 520px;
+      text-align: center;
+    }
+    .icon { font-size: 56px; margin-bottom: 12px; }
+    h1 { font-size: 22px; font-weight: 700; color: #166534; margin-bottom: 8px; }
+    .sub { font-size: 14px; color: #64748b; margin-bottom: 24px; }
+    .plan-badge {
+      display: inline-block; background: #eef2ff; color: #4f46e5;
+      padding: 4px 16px; border-radius: 20px;
+      font-size: 13px; font-weight: 600; margin-bottom: 20px;
+    }
+    .license-box {
+      background: #f8fafc; border: 1.5px solid #e2e8f0;
+      border-radius: 8px; padding: 16px; margin-bottom: 20px;
+      text-align: left;
+    }
+    .license-box .label { font-size: 12px; color: #94a3b8; margin-bottom: 6px; text-transform: uppercase; letter-spacing: .5px; }
+    .license-box .token {
+      font-family: 'SFMono-Regular', Consolas, monospace;
+      font-size: 12px; color: #1e293b; line-height: 1.6;
+      word-break: break-all; background: #fff;
+      padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0;
+      user-select: all;
+    }
+    .btn-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 20px; }
+    .btn {
+      padding: 10px 24px; border-radius: 8px;
+      font-size: 13px; font-weight: 600; text-decoration: none;
+      cursor: pointer; border: none; transition: all .2s;
+    }
+    .btn-primary { background: #6366f1; color: #fff; }
+    .btn-primary:hover { background: #4f46e5; }
+    .btn-outline {
+      background: transparent; color: #475569;
+      border: 1.5px solid #cbd5e1;
+    }
+    .btn-outline:hover { background: #f1f5f9; }
+    .btn-success { background: #22c55e; color: #fff; }
+    .btn-success:hover { background: #16a34a; }
+    .processing { padding: 20px; color: #64748b; }
+    .processing .spinner { font-size: 32px; margin-bottom: 12px; }
+    .detail-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; color: #475569; border-bottom: 1px solid #f1f5f9; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <% if @new_token %>
+      <div class="icon">🪪</div>
+      <h1>Licença Gerada!</h1>
+      <p class="sub">Seu pagamento foi confirmado e sua nova licença está pronta.</p>
+
+      <div class="plan-badge"><%= @plan&.capitalize %> <%= { 'monthly' => 'Mensal', 'semiannual' => 'Semestral', 'lifetime' => 'Vitalício' }[@interval] || @interval %></div>
+
+      <div class="license-box">
+        <div class="label">🆕 Seu Token de Licença</div>
+        <div class="token" id="licenseToken"><%= h(@new_token) %></div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="copyToken()">📋 Copiar Token</button>
+        <% if @receipt_file %>
+          <a href="/receipts/<%= @receipt_file %>" class="btn btn-outline" download>⬇️ Baixar Comprovante</a>
+        <% end %>
+      </div>
+
+      <p style="font-size:13px;color:#64748b;margin-bottom:16px;">
+        Copie o token acima e cole no campo de licença do sistema para ativar seu plano.
+      </p>
+
+      <a href="/" class="btn btn-success">Ir para o Dashboard</a>
+    <% elsif @plan %>
+      <div class="icon">⏳</div>
+      <h1>Pagamento Recebido!</h1>
+      <p class="sub">Estamos gerando sua licença... deve levar apenas alguns segundos.</p>
+      <div class="processing">
+        <div class="spinner">⏳</div>
+        <p>Processando...</p>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="location.reload()">🔄 Verificar Agora</button>
+        <a href="/" class="btn btn-outline">Ir para o Dashboard</a>
+      </div>
+      <script>
+        setTimeout(function() { location.reload(); }, 5000);
+      </script>
+    <% else %>
+      <div class="icon">✅</div>
+      <h1>Pagamento Confirmado!</h1>
+      <p class="sub">Seu pagamento foi processado com sucesso.</p>
+      <a href="/plans" class="btn btn-primary">Ver Planos</a>
+      <a href="/" class="btn btn-outline" style="margin-left:8px;">Dashboard</a>
+    <% end %>
+  </div>
+
+  <script>
+    function copyToken() {
+      const el = document.getElementById('licenseToken');
+      if (!el) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(el.textContent).then(() => {
+          const btn = document.querySelector('.btn-primary');
+          btn.textContent = '✅ Copiado!';
+          setTimeout(() => { btn.textContent = '📋 Copiar Token'; }, 2000);
+        });
+      } else {
+        const range = document.createRange();
+        range.selectNode(el);
+        window.getSelection().removeAllRanges();
+        window.getSelection().addRange(range);
+        document.execCommand('copy');
+        const btn = document.querySelector('.btn-primary');
+        btn.textContent = '✅ Copiado!';
+        setTimeout(() => { btn.textContent = '📋 Copiar Token'; }, 2000);
+      }
+    }
+  </script>
+</body>
+</html>

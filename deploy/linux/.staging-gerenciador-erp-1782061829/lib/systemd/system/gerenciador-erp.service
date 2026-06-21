@@ -1,0 +1,20 @@
+[Unit]
+Description=Gerenciador ERP - Sistema de Gerenciamento de Estoque
+Documentation=https://github.com/VICTORGG04/GerenciadorClaude
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=gerenciador-erp
+Group=gerenciador-erp
+WorkingDirectory=/usr/share/gerenciador-erp
+EnvironmentFile=/etc/gerenciador-erp/.env
+ExecStart=__BUNDLE_PATH__ exec ruby /usr/share/gerenciador-erp/app.rb
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
