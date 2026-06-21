@@ -163,6 +163,63 @@ class GoogleSheetValidator
       false
     end
 
+    def register_dispute!(dispute_data)
+      unless SHEET_ID && CREDENTIALS_PATH
+        log("[GoogleSheetValidator] register_dispute: Variáveis de ambiente ausentes")
+        return false
+      end
+
+      result = call_python('register_dispute', dispute_data)
+      if result['success']
+        log("[GoogleSheetValidator] Disputa registrada: #{dispute_data[:id]}")
+        true
+      else
+        log("[GoogleSheetValidator] Erro ao registrar disputa: #{result['error']}")
+        false
+      end
+    rescue => e
+      log("[GoogleSheetValidator] Erro ao registrar disputa: #{e.message}")
+      false
+    end
+
+    def update_dispute!(dispute_id, status)
+      unless SHEET_ID && CREDENTIALS_PATH
+        log("[GoogleSheetValidator] update_dispute: Variáveis de ambiente ausentes")
+        return false
+      end
+
+      result = call_python('update_dispute', { id: dispute_id, status: status, updated_at: Time.now.utc.iso8601 })
+      if result['success']
+        log("[GoogleSheetValidator] Disputa atualizada: #{dispute_id} -> #{status}")
+        true
+      else
+        log("[GoogleSheetValidator] Erro ao atualizar disputa: #{result['error']}")
+        false
+      end
+    rescue => e
+      log("[GoogleSheetValidator] Erro ao atualizar disputa: #{e.message}")
+      false
+    end
+
+    def close_dispute!(dispute_id, status, closed_at = Time.now.utc.iso8601)
+      unless SHEET_ID && CREDENTIALS_PATH
+        log("[GoogleSheetValidator] close_dispute: Variáveis de ambiente ausentes")
+        return false
+      end
+
+      result = call_python('close_dispute', { id: dispute_id, status: status, closed_at: closed_at, updated_at: Time.now.utc.iso8601 })
+      if result['success']
+        log("[GoogleSheetValidator] Disputa encerrada: #{dispute_id} -> #{status}")
+        true
+      else
+        log("[GoogleSheetValidator] Erro ao encerrar disputa: #{result['error']}")
+        false
+      end
+    rescue => e
+      log("[GoogleSheetValidator] Erro ao encerrar disputa: #{e.message}")
+      false
+    end
+
     def machine_id
       FileUtils.mkdir_p(STORAGE_DIR)
       if File.exist?(MID_FILE)

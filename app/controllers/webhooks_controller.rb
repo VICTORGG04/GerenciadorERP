@@ -27,6 +27,8 @@ def handle_stripe_webhook
     handle_invoice_failed(event['data']['object'])
   when 'charge.dispute.created'
     handle_dispute_created(event['data']['object'])
+  when 'charge.dispute.updated'
+    handle_dispute_updated(event['data']['object'])
   when 'charge.dispute.closed'
     handle_dispute_closed(event['data']['object'])
   end
@@ -233,24 +235,57 @@ def handle_dispute_created(dispute)
   email = customer_email_from_dispute(dispute)
   unless email
     log_webhook("charge.dispute.created: não foi possível obter email do cliente (disputa: #{dispute['id']})")
+    GoogleSheetValidator.register_dispute!(
+      id: dispute['id'], charge_id: dispute['charge'],
+      customer_email: '', license_token: '',
+      amount: dispute['amount'], currency: dispute['currency'],
+      reason: dispute['reason'], status: dispute['status'],
+      evidence_submitted: 'nao',
+      created_at: Time.at(dispute['created']).utc.iso8601
+    ) rescue nil
     return
   end
 
   token = find_token_by_email(email)
   unless token
     log_webhook("charge.dispute.created: licença não encontrada para #{email}")
+    GoogleSheetValidator.register_dispute!(
+      id: dispute['id'], charge_id: dispute['charge'],
+      customer_email: email, license_token: '',
+      amount: dispute['amount'], currency: dispute['currency'],
+      reason: dispute['reason'], status: dispute['status'],
+      evidence_submitted: 'nao',
+      created_at: Time.at(dispute['created']).utc.iso8601
+    ) rescue nil
     return
   end
 
   GoogleSheetValidator.update_payment_status!(token, 'pendente')
+
+  charge = Stripe::Charge.retrieve(dispute['charge']) rescue nil
+  payment_intent = charge&.payment_intent
+
+  auto_contestavel = DisputeEvidence.auto_contestable?(dispute['reason'])
+  GoogleSheetValidator.register_dispute!(
+    id: dispute['id'],
+    charge_id: dispute['charge'],
+    payment_intent: payment_intent,
+    customer_email: email,
+    license_token: token,
+    amount: dispute['amount'],
+    currency: dispute['currency'],
+    reason: dispute['reason'],
+    status: dispute['status'],
+    evidence_submitted: auto_contestavel ? 'auto' : 'nao',
+    created_at: Time.at(dispute['created']).utc.iso8601
+  )
   log_webhook("charge.dispute.created: #{token} -> pendente (disputa: #{dispute['id']}, motivo: #{dispute['reason']})")
 
-  if DisputeEvidence.auto_contestable?(dispute['reason'])
+  if auto_contestavel
     result = DB.exec_params("SELECT * FROM licenses WHERE license_token ILIKE $1 LIMIT 1", ["%#{token}%"])
     lic = License.new(result[0]) if result.ntuples > 0
     if lic
       sub = Subscription.find_by_license(lic.id)
-      charge = Stripe::Charge.retrieve(dispute['charge']) rescue nil
 
       evidence_data = {
         token: token,
@@ -279,6 +314,8 @@ def handle_dispute_created(dispute)
 end
 
 def handle_dispute_closed(dispute)
+  GoogleSheetValidator.close_dispute!(dispute['id'], dispute['status'])
+
   email = customer_email_from_dispute(dispute)
   unless email
     log_webhook("charge.dispute.closed: não foi possível obter email do cliente (disputa: #{dispute['id']})")
@@ -301,6 +338,11 @@ def handle_dispute_closed(dispute)
   else
     log_webhook("charge.dispute.closed: #{token} status desconhecido: #{status}")
   end
+end
+
+def handle_dispute_updated(dispute)
+  GoogleSheetValidator.update_dispute!(dispute['id'], dispute['status'])
+  log_webhook("charge.dispute.updated: #{dispute['id']} -> #{dispute['status']}")
 end
 
 def customer_email_from_dispute(dispute)

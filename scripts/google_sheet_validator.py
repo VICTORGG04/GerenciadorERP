@@ -19,6 +19,7 @@ from google.oauth2.service_account import Credentials
 SHEET_ID = os.environ.get('GOOGLE_SHEET_ID', '')
 CREDENTIALS_PATH = os.environ.get('GOOGLE_SHEET_CREDENTIALS', '')
 TAB_NAME = 'Licencas'
+TAB_CONTESTACOES = 'Contestacoes'
 
 COLUMNS = [
     'token', 'cnpj', 'company', 'plan', 'payment', 'expires', 'status',
@@ -27,6 +28,12 @@ COLUMNS = [
     'address_neighborhood', 'address_city', 'address_state',
     'address_zip', 'contact_name', 'contact_email', 'contact_phone',
     'notes'
+]
+
+COLUNAS_CONTESTACOES = [
+    'ID', 'CHARGE_ID', 'PAYMENT_INTENT', 'CUSTOMER_EMAIL', 'LICENSE_TOKEN',
+    'AMOUNT', 'CURRENCY', 'REASON', 'STATUS', 'EVIDENCE_SUBMITTED',
+    'CREATED_AT', 'UPDATED_AT', 'CLOSED_AT', 'NOTES'
 ]
 
 STORAGE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'storage')
@@ -365,6 +372,123 @@ def action_update_status(args):
         return {'success': False, 'error': f'Erro ao atualizar status: {e}'}
 
 
+def get_contestacoes_worksheet(gc):
+    try:
+        spreadsheet = gc.open_by_key(SHEET_ID)
+        return spreadsheet.worksheet(TAB_CONTESTACOES)
+    except Exception as e:
+        return None
+
+
+def find_last_data_row_in_ws(ws):
+    all_values = ws.get_all_values()
+    last_row = 1
+    for idx, row in enumerate(all_values):
+        if any(cell.strip() for cell in row):
+            last_row = idx + 1
+    return last_row
+
+
+def action_register_dispute(args):
+    dispute_id = args.get('id', '').strip()
+    if not dispute_id:
+        return {'success': False, 'error': 'ID da disputa não informado'}
+
+    gc, err = get_client()
+    if err:
+        return {'success': False, 'error': err}
+    ws = get_contestacoes_worksheet(gc)
+    if ws is None:
+        return {'success': False, 'error': f'Aba "{TAB_CONTESTACOES}" não encontrada'}
+
+    try:
+        now = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+        row = [
+            dispute_id,
+            args.get('charge_id', '').strip(),
+            args.get('payment_intent', '').strip(),
+            args.get('customer_email', '').strip(),
+            args.get('license_token', '').strip(),
+            args.get('amount', ''),
+            args.get('currency', 'brl').strip(),
+            args.get('reason', '').strip(),
+            args.get('status', 'needs_response').strip(),
+            args.get('evidence_submitted', 'nao').strip(),
+            args.get('created_at', now),
+            now,
+            '',
+            args.get('notes', '').strip()
+        ]
+
+        last_row = find_last_data_row_in_ws(ws)
+        insert_pos = last_row + 1
+        ws.insert_row(row, index=insert_pos)
+        log(f'Disputa {dispute_id} registrada na linha {insert_pos}')
+        return {'success': True}
+    except Exception as e:
+        return {'success': False, 'error': f'Erro ao registrar disputa: {e}'}
+
+
+def action_update_dispute(args):
+    dispute_id = args.get('id', '').strip()
+    if not dispute_id:
+        return {'success': False, 'error': 'ID da disputa não informado'}
+
+    gc, err = get_client()
+    if err:
+        return {'success': False, 'error': err}
+    ws = get_contestacoes_worksheet(gc)
+    if ws is None:
+        return {'success': False, 'error': f'Aba "{TAB_CONTESTACOES}" não encontrada'}
+
+    try:
+        now = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+        rows = ws.get_all_values()
+        for i, row in enumerate(rows):
+            if row[0].strip() == dispute_id:
+                row_num = i + 1
+                new_status = args.get('status', '').strip()
+                if new_status:
+                    ws.update_cell(row_num, 9, new_status)
+                ws.update_cell(row_num, 12, now)
+                log(f'Disputa {dispute_id} atualizada: status={new_status}')
+                return {'success': True}
+        return {'success': False, 'error': f'Disputa {dispute_id} não encontrada'}
+    except Exception as e:
+        return {'success': False, 'error': f'Erro ao atualizar disputa: {e}'}
+
+
+def action_close_dispute(args):
+    dispute_id = args.get('id', '').strip()
+    if not dispute_id:
+        return {'success': False, 'error': 'ID da disputa não informado'}
+
+    gc, err = get_client()
+    if err:
+        return {'success': False, 'error': err}
+    ws = get_contestacoes_worksheet(gc)
+    if ws is None:
+        return {'success': False, 'error': f'Aba "{TAB_CONTESTACOES}" não encontrada'}
+
+    try:
+        now = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+        rows = ws.get_all_values()
+        for i, row in enumerate(rows):
+            if row[0].strip() == dispute_id:
+                row_num = i + 1
+                new_status = args.get('status', '').strip()
+                closed_at = args.get('closed_at', now)
+                if new_status:
+                    ws.update_cell(row_num, 9, new_status)
+                ws.update_cell(row_num, 12, now)
+                ws.update_cell(row_num, 13, closed_at)
+                log(f'Disputa {dispute_id} encerrada: status={new_status}')
+                return {'success': True}
+        return {'success': False, 'error': f'Disputa {dispute_id} não encontrada'}
+    except Exception as e:
+        return {'success': False, 'error': f'Erro ao encerrar disputa: {e}'}
+
+
 def action_internet(args):
     gc, err = get_client()
     if err:
@@ -390,6 +514,9 @@ ACTIONS = {
     'activate': action_activate,
     'update_payment': action_update_payment,
     'update_status': action_update_status,
+    'register_dispute': action_register_dispute,
+    'update_dispute': action_update_dispute,
+    'close_dispute': action_close_dispute,
     'internet': action_internet,
 }
 
